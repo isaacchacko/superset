@@ -6,14 +6,16 @@
 #
 # The build is branch release/<tag>: the tag plus Vector's commits (upstream/main..main).
 # The branch is made on first use by cherry-picking those commits, and pushed to origin.
-# The result is ~/Applications/Superset Efforts.app. Inside it is still "Superset" (same
+# The result is ~/Applications/Vector.app. Inside it is still "Superset" (same
 # app id, product name, ~/.superset, app-support folder and keychain entry), so it shares
 # the stock app's settings, sign-in and data. Run one or the other, never both at once.
 set -euo pipefail
 
 REPO="$(cd "$(dirname "$0")/.." && pwd)"
 TREE="${VECTOR_RELEASE_TREE:-$HOME/Programs/vector-release}"
-OUT="$HOME/Applications/Superset Efforts.app"
+OUT="$HOME/Applications/Vector.app"
+# The name Vector builds had before 2026-10-26; replaced on install.
+LEGACY="$HOME/Applications/Superset Efforts.app"
 INSTALLED="$(defaults read /Applications/Superset.app/Contents/Info.plist CFBundleShortVersionString)"
 TAG="${1:-desktop-v$INSTALLED}"
 BRANCH="release/$TAG"
@@ -67,12 +69,12 @@ CSC_IDENTITY_AUTO_DISCOVERY=false bunx electron-builder --config electron-builde
   --mac dir --arm64 -c.mac.notarize=false -c.mac.identity=-
 
 BUILT="$TREE/apps/desktop/$(ls -d release/mac-arm64/*.app | head -1)"
-if pgrep -qf "$OUT/Contents/MacOS/"; then
-  echo "built $BUILT from $BRANCH; Superset Efforts is running, so it was not installed." >&2
-  echo "Quit it (⌘Q), then: rm -rf \"$OUT\" && cp -R \"$BUILT\" \"$OUT\"" >&2
+if pgrep -qf "$OUT/Contents/MacOS/" || pgrep -qf "$LEGACY/Contents/MacOS/"; then
+  echo "built $BUILT from $BRANCH; Vector is running, so it was not installed." >&2
+  echo "Quit it (⌘Q), then: rm -rf \"$OUT\" \"$LEGACY\" && cp -R \"$BUILT\" \"$OUT\"" >&2
   exit 0
 fi
 mkdir -p "$HOME/Applications"
-rm -rf "$OUT"
+rm -rf "$OUT" "$LEGACY"
 cp -R "$BUILT" "$OUT"
 echo "built $OUT from $BRANCH"
