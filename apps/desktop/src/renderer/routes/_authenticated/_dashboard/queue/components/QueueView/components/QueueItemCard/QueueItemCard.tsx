@@ -1,5 +1,6 @@
 import { Trans, useLingui } from "@lingui/react/macro";
 import { Button } from "@superset/ui/button";
+import { Kbd, KbdGroup } from "@superset/ui/kbd";
 import { toast } from "@superset/ui/sonner";
 import { Textarea } from "@superset/ui/textarea";
 import { cn } from "@superset/ui/utils";
@@ -121,9 +122,6 @@ export function QueueItemCard({ item, position }: QueueItemCardProps) {
 						className="resize-y text-sm"
 					/>
 					<div className="flex items-center justify-end gap-2">
-						<span className="mr-auto text-muted-foreground text-xs">
-							<Trans>⌘↩ sends it as your decision</Trans>
-						</span>
 						<Button
 							variant="outline"
 							size="sm"
@@ -136,9 +134,16 @@ export function QueueItemCard({ item, position }: QueueItemCardProps) {
 							size="sm"
 							disabled={!draft.trim() || answer.isPending}
 							onClick={() => send("decision")}
-							title={t({ message: "Decide (⌘↩)" })}
 						>
 							<Trans>Decide</Trans>
+							<KbdGroup>
+								<Kbd className="bg-primary-foreground/15 text-primary-foreground">
+									⌘
+								</Kbd>
+								<Kbd className="bg-primary-foreground/15 text-primary-foreground">
+									↵
+								</Kbd>
+							</KbdGroup>
 						</Button>
 					</div>
 				</div>
