@@ -25,6 +25,7 @@ import { createPluginsRouter } from "./plugins";
 import { createPortForwardsRouter } from "./port-forwards";
 import { createPortsRouter } from "./ports";
 import { createProjectsRouter } from "./projects";
+import { createQueueRouter } from "./queue";
 import { createResourceMetricsRouter } from "./resource-metrics";
 import { createRingtoneRouter } from "./ringtone";
 import { createScreenshotsRouter } from "./screenshots";
@@ -71,6 +72,7 @@ export const createAppRouter = (getWindow: () => BrowserWindow | null) => {
 		keyboardLayout: createKeyboardLayoutRouter(),
 		migration: createMigrationRouter(),
 		efforts: createEffortsRouter(),
+		queue: createQueueRouter(),
 	});
 };
 
