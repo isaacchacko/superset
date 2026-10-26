@@ -17,17 +17,18 @@ interface QueuePullRequestsProps {
 }
 
 /**
- * Isaac's open PRs, oldest first, beside the selected one's description and
- * diff. Space c u / c n copy its URL / number, Space p m tells its agent to
- * /prmerge it, j / k move through the list.
+ * PRs agents surfaced to Isaac (`effort ask --pr`), oldest first, beside the
+ * selected one's note, answer box, description and diff. Space c u / c n copy
+ * its URL / number, Space p m tells its agent to /prmerge it, j / k move
+ * through the list.
  */
 export function QueuePullRequests({ pullRequests }: QueuePullRequestsProps) {
 	const { t } = useLingui();
 	const utils = electronTrpc.useUtils();
-	const [selectedUrl, setSelectedUrl] = useState<string | null>(null);
+	const [selectedId, setSelectedId] = useState<string | null>(null);
 	const list = pullRequests ?? [];
 	const selected =
-		list.find((pullRequest) => pullRequest.url === selectedUrl) ??
+		list.find((pullRequest) => pullRequest.item.id === selectedId) ??
 		list[0] ??
 		null;
 	const prmerge = electronTrpc.queue.prmerge.useMutation({
@@ -54,18 +55,19 @@ export function QueuePullRequests({ pullRequests }: QueuePullRequestsProps) {
 			if (action === "next-item" || action === "prev-item") {
 				const index = selected ? list.indexOf(selected) : -1;
 				const next = list[index + (action === "next-item" ? 1 : -1)];
-				if (next) setSelectedUrl(next.url);
+				if (next) setSelectedId(next.item.id);
 				return;
 			}
 			if (!selected) return;
-			if (action === "copy-pr-url") void copy(selected.url);
-			else if (action === "copy-pr-number") void copy(String(selected.number));
+			const { pr } = selected.item;
+			if (action === "copy-pr-url") void copy(pr.url);
+			else if (action === "copy-pr-number") void copy(String(pr.number));
 			else if (action === "prmerge-pr") {
 				if (selected.autoMergeAt) {
-					toast(t({ message: `#${selected.number} is already set to merge` }));
+					toast(t({ message: `#${pr.number} is already set to merge` }));
 					return;
 				}
-				prmerge.mutate({ url: selected.url, branch: selected.branch });
+				prmerge.mutate({ url: pr.url, branch: pr.branch });
 			}
 		};
 		window.addEventListener(VIM_PAGE_ACTION_EVENT, onAction);
@@ -75,14 +77,16 @@ export function QueuePullRequests({ pullRequests }: QueuePullRequestsProps) {
 	if (pullRequests === undefined) {
 		return (
 			<div className="px-8 text-muted-foreground text-sm">
-				<Trans>Reading your open PRs…</Trans>
+				<Trans>Reading the PRs agents surfaced…</Trans>
 			</div>
 		);
 	}
 	if (list.length === 0) {
 		return (
 			<div className="mx-8 rounded-lg border border-dashed px-4 py-8 text-center text-muted-foreground text-sm">
-				<Trans>You have no open PRs.</Trans>
+				<Trans>
+					No agent has surfaced a PR to you. Agents do it with effort ask --pr.
+				</Trans>
 			</div>
 		);
 	}
@@ -90,37 +94,44 @@ export function QueuePullRequests({ pullRequests }: QueuePullRequestsProps) {
 	return (
 		<div className="flex min-h-0 flex-1 border-t">
 			<ol className="w-80 shrink-0 select-text overflow-y-auto border-r py-1">
-				{list.map((pullRequest, index) => (
-					<li key={pullRequest.url}>
-						<button
-							type="button"
-							onClick={() => setSelectedUrl(pullRequest.url)}
-							className={cn(
-								"flex w-full flex-col gap-1 px-4 py-2 text-left transition-colors",
-								pullRequest === selected
-									? "bg-fill-selected"
-									: "hover:bg-fill-hover",
-							)}
-						>
-							<span className="flex items-center gap-1.5 text-muted-foreground text-xs">
-								<span className="tabular-nums">{index + 1}</span>
-								<span className="truncate">
-									{pullRequest.repo}#{pullRequest.number}
+				{list.map((pullRequest, index) => {
+					const { item } = pullRequest;
+					const raisedAtMs = Number.parseInt(item.id.split("-")[1] ?? "0", 16);
+					return (
+						<li key={item.id}>
+							<button
+								type="button"
+								onClick={() => setSelectedId(item.id)}
+								className={cn(
+									"flex w-full flex-col gap-1 px-4 py-2 text-left transition-colors",
+									pullRequest === selected
+										? "bg-fill-selected"
+										: "hover:bg-fill-hover",
+								)}
+							>
+								<span className="flex items-center gap-1.5 text-muted-foreground text-xs">
+									<span className="tabular-nums">{index + 1}</span>
+									<span className="truncate">
+										{item.pr.repo}#{item.pr.number}
+									</span>
+									<span className="ml-auto shrink-0">
+										{formatRelativeTime(raisedAtMs)}
+									</span>
 								</span>
-								<span className="ml-auto shrink-0">
-									{formatRelativeTime(Date.parse(pullRequest.createdAt))}
+								<span className="line-clamp-2 text-sm leading-snug">
+									{pullRequest.title}
 								</span>
-							</span>
-							<span className="line-clamp-2 text-sm leading-snug">
-								{pullRequest.title}
-							</span>
-							<QueuePullRequestBadges pullRequest={pullRequest} />
-						</button>
-					</li>
-				))}
+								<span className="line-clamp-2 text-muted-foreground text-xs">
+									{item.asker.label}: {item.question}
+								</span>
+								<QueuePullRequestBadges pullRequest={pullRequest} />
+							</button>
+						</li>
+					);
+				})}
 			</ol>
 			{selected && (
-				<QueuePullRequestDetail key={selected.url} pullRequest={selected} />
+				<QueuePullRequestDetail key={selected.item.id} pullRequest={selected} />
 			)}
 		</div>
 	);

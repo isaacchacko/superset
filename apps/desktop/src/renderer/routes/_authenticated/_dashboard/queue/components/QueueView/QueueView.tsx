@@ -26,7 +26,9 @@ export function QueueView({ tab, onTabChange }: QueueViewProps) {
 		undefined,
 		{ refetchInterval: QUEUE_PULL_REQUESTS_REFRESH_MS },
 	);
-	const decisionCount = items.filter((item) => item.status === "open").length;
+	const decisionCount = items.filter(
+		(item) => item.status === "open" && !item.pr,
+	).length;
 
 	// Cmd+H / Cmd+L, caught in the main process before the menu's Hide.
 	electronTrpc.notifications.subscribe.useSubscription(undefined, {
