@@ -1,20 +1,17 @@
-import { execFile } from "node:child_process";
 import { readdir, readFile } from "node:fs/promises";
-import { homedir } from "node:os";
 import { join } from "node:path";
-import { promisify } from "node:util";
-import { TRPCError } from "@trpc/server";
 import {
 	parseQueueItem,
 	QUEUE_ITEM_ID_PATTERN,
 	type QueueItem,
+	type QueuePullRequest,
 	sortQueueItems,
+	sortQueuePullRequests,
 } from "shared/queue";
 import { z } from "zod";
 import { publicProcedure, router } from "../..";
 import { getEffortsHome } from "../efforts";
-
-const execFileAsync = promisify(execFile);
+import { EFFORT_BIN, runTool } from "../vector/run-tool";
 
 export async function readQueue(
 	queueDir: string = join(getEffortsHome(), "queue"),
@@ -41,38 +38,78 @@ export async function readQueue(
 	return sortQueueItems(items.filter((item) => item !== null));
 }
 
-/**
- * Answers through the `effort` CLI, which types the answer into the asking agent's
- * terminal (on whichever host it runs) before recording it.
- */
-async function answerQueueItem(
-	id: string,
-	kind: "decision" | "followup",
-	text: string,
-): Promise<void> {
-	const bin = process.env.EFFORT_BIN || join(homedir(), ".local/bin/effort");
-	const args = ["answer", id, ...(kind === "followup" ? ["--follow-up"] : [])];
+const OPEN_PULL_REQUESTS_QUERY = `query {
+  search(query: "is:pr is:open author:@me archived:false", type: ISSUE, first: 100) {
+    nodes {
+      ... on PullRequest {
+        number title url createdAt isDraft headRefName reviewDecision
+        repository { nameWithOwner }
+        autoMergeRequest { enabledAt }
+      }
+    }
+  }
+}`;
+
+interface GraphqlPullRequest {
+	number: number;
+	title: string;
+	url: string;
+	createdAt: string;
+	isDraft: boolean;
+	headRefName: string;
+	reviewDecision: string | null;
+	repository: { nameWithOwner: string };
+	autoMergeRequest: { enabledAt: string } | null;
+}
+
+async function readNudges(): Promise<Record<string, string>> {
 	try {
-		await execFileAsync(bin, [...args, "--", text], {
-			timeout: 60_000,
-			// An app opened from the Dock has a bare PATH; the CLI needs python3 and ssh.
-			env: {
-				...process.env,
-				PATH: `/opt/homebrew/bin:/usr/local/bin:${process.env.PATH ?? "/usr/bin:/bin"}`,
-			},
-		});
-	} catch (error) {
-		const stderr = (error as { stderr?: string }).stderr?.trim();
-		throw new TRPCError({
-			code: "INTERNAL_SERVER_ERROR",
-			message: stderr || (error as Error).message,
-		});
+		return JSON.parse(
+			await readFile(join(getEffortsHome(), "prmerge-nudges.json"), "utf8"),
+		);
+	} catch {
+		return {};
 	}
+}
+
+/** Isaac's open PRs (his agents open them as him), oldest first. */
+async function readPullRequests(): Promise<QueuePullRequest[]> {
+	const [stdout, nudges] = await Promise.all([
+		runTool("gh", [
+			"api",
+			"graphql",
+			"-f",
+			`query=${OPEN_PULL_REQUESTS_QUERY}`,
+		]),
+		readNudges(),
+	]);
+	const nodes: GraphqlPullRequest[] =
+		JSON.parse(stdout).data?.search?.nodes ?? [];
+	return sortQueuePullRequests(
+		nodes
+			.filter((node) => node.number !== undefined)
+			.map((node) => ({
+				number: node.number,
+				title: node.title,
+				url: node.url,
+				createdAt: node.createdAt,
+				isDraft: node.isDraft,
+				branch: node.headRefName,
+				repo: node.repository.nameWithOwner,
+				reviewDecision: node.reviewDecision,
+				autoMergeAt: node.autoMergeRequest?.enabledAt ?? null,
+				nudgedAt: nudges[node.url] ?? null,
+			})),
+	);
 }
 
 export const createQueueRouter = () => {
 	return router({
 		list: publicProcedure.query(() => readQueue()),
+		/**
+		 * Answers through the `effort` CLI, which types the answer into the asking
+		 * agent's terminal (on whichever host it runs) before recording it.
+		 */
 		answer: publicProcedure
 			.input(
 				z.object({
@@ -81,8 +118,27 @@ export const createQueueRouter = () => {
 					text: z.string().trim().min(1),
 				}),
 			)
-			.mutation(({ input }) =>
-				answerQueueItem(input.id, input.kind, input.text),
-			),
+			.mutation(async ({ input }) => {
+				await runTool(EFFORT_BIN, [
+					"answer",
+					input.id,
+					...(input.kind === "followup" ? ["--follow-up"] : []),
+					"--",
+					input.text,
+				]);
+			}),
+		pullRequests: publicProcedure.query(() => readPullRequests()),
+		/** Space p m: the agent on the PR's branch is told to /prmerge it. */
+		prmerge: publicProcedure
+			.input(z.object({ url: z.string().url(), branch: z.string().min(1) }))
+			.mutation(async ({ input }) => {
+				const out = await runTool(EFFORT_BIN, [
+					"prmerge",
+					input.url,
+					"--branch",
+					input.branch,
+				]);
+				return { message: out.trim() };
+			}),
 	});
 };

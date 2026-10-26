@@ -55,7 +55,8 @@ export function useAgentHookListener() {
 			if (!event.data) return;
 			if (
 				event.type === NOTIFICATION_EVENTS.FOCUS_V2_NOTIFICATION_SOURCE ||
-				event.type === NOTIFICATION_EVENTS.OPEN_PAGE
+				event.type === NOTIFICATION_EVENTS.OPEN_PAGE ||
+				event.type === NOTIFICATION_EVENTS.QUEUE_TAB
 			) {
 				return;
 			}

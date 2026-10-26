@@ -116,7 +116,10 @@ export function QueueItemCard({ item, position }: QueueItemCardProps) {
 						rows={3}
 						className="resize-y text-sm"
 					/>
-					<div className="flex justify-end gap-2">
+					<div className="flex items-center justify-end gap-2">
+						<span className="mr-auto text-muted-foreground text-xs">
+							<Trans>⌘↩ sends it as your decision</Trans>
+						</span>
 						<Button
 							variant="outline"
 							size="sm"
