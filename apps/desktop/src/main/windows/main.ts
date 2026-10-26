@@ -529,6 +529,25 @@ export async function createPlatformWindow({
 	};
 	window.on("move", debouncedSave);
 	window.on("resize", debouncedSave);
+	// Vector: Cmd+H / Cmd+L switch the Queue's tabs. Caught here because the
+	// menu would take Cmd+H (Hide) before the page sees it.
+	window.webContents.on("before-input-event", (event, input) => {
+		if (
+			input.type !== "keyDown" ||
+			!input.meta ||
+			input.shift ||
+			input.alt ||
+			input.control ||
+			(input.key !== "h" && input.key !== "l")
+		)
+			return;
+		if (!new URL(window.webContents.getURL()).hash.startsWith("#/queue"))
+			return;
+		event.preventDefault();
+		notificationsEmitter.emit(NOTIFICATION_EVENTS.QUEUE_TAB, {
+			direction: input.key === "h" ? "left" : "right",
+		});
+	});
 	window.webContents.on("zoom-changed", () => {
 		setTimeout(() => {
 			if (window.isDestroyed()) return;

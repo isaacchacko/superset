@@ -1,0 +1,1 @@
+export { QueuePullRequestDetail } from "./QueuePullRequestDetail";

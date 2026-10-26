@@ -66,3 +66,30 @@ export function partitionQueue(items: QueueItem[]): QueueSections {
 		answered: sorted.filter((item) => item.status === "answered").reverse(),
 	};
 }
+
+/** An open PR Isaac's agents made, for the Queue's PRs tab. */
+export interface QueuePullRequest {
+	number: number;
+	title: string;
+	url: string;
+	createdAt: string;
+	isDraft: boolean;
+	branch: string;
+	/** owner/name */
+	repo: string;
+	reviewDecision: string | null;
+	/** GitHub auto-merge is armed: /prmerge has it. */
+	autoMergeAt: string | null;
+	/** When Space p m last told its agent to /prmerge it. */
+	nudgedAt: string | null;
+}
+
+/** First in, first out, like decisions: the PR that has waited longest comes first. */
+export function sortQueuePullRequests(
+	pullRequests: QueuePullRequest[],
+): QueuePullRequest[] {
+	return [...pullRequests].sort(
+		(a, b) =>
+			a.createdAt.localeCompare(b.createdAt) || a.url.localeCompare(b.url),
+	);
+}
