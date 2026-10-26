@@ -14,6 +14,7 @@ import { useHostWorkspaces } from "renderer/routes/_authenticated/providers/Host
 import { useLocalHostService } from "renderer/routes/_authenticated/providers/LocalHostServiceProvider";
 import { useRightPaneAreaEnabled } from "renderer/stores/right-pane-area";
 import { NOTIFICATION_EVENTS } from "shared/constants";
+import { isEffortChildWorkspace } from "shared/efforts";
 import type { AgentLifecycleEvent } from "shared/notification-types";
 import {
 	HostNotificationSubscriber,
@@ -30,6 +31,7 @@ interface WorkspaceHostRow {
 	name: string;
 	projectName?: string;
 	branch: string;
+	tags?: readonly string[] | null;
 }
 
 interface HostNotificationSubscriberGroup {
@@ -83,6 +85,7 @@ export function V2NotificationController() {
 					(project) => project.id === workspace.projectId,
 				)?.name,
 				branch: workspace.branch,
+				tags: workspace.tags,
 			})),
 		[hostWorkspaces, projects],
 	);
@@ -255,6 +258,7 @@ function getNotificationWorkspaceStatesById({
 			paneLayout: paneLayoutsByWorkspaceId.get(workspace.workspaceId) ?? null,
 			rightPaneLayout:
 				rightPaneLayoutsByWorkspaceId.get(workspace.workspaceId) ?? null,
+			alertsSuppressed: isEffortChildWorkspace(workspace),
 		});
 	}
 

@@ -10,6 +10,7 @@ import { createConfigRouter } from "./config";
 import { createDeviceRouter } from "./device";
 import { createDictationRouter } from "./dictation";
 import { createDownloadsRouter } from "./downloads";
+import { createEffortsRouter } from "./efforts";
 import { createExternalRouter } from "./external";
 import { createFilesystemRouter } from "./filesystem";
 import { createGithubStarRouter } from "./github-star";
@@ -69,6 +70,7 @@ export const createAppRouter = (getWindow: () => BrowserWindow | null) => {
 		hostServiceCoordinator: createHostServiceCoordinatorRouter(),
 		keyboardLayout: createKeyboardLayoutRouter(),
 		migration: createMigrationRouter(),
+		efforts: createEffortsRouter(),
 	});
 };
 
