@@ -7,9 +7,13 @@ import { useSidebarWorkspaceStatuses } from "../../providers/DashboardSidebarWor
 import {
 	isAgentTerminal,
 	isInsertTarget,
+	isVimPageAction,
+	matchLeaderSequence,
 	nextFinishedAgent,
+	normalModeAction,
 	VIM_LEADER_TIMEOUT_MS,
-	vimActionFor,
+	VIM_PAGE_ACTION_EVENT,
+	type VimAction,
 } from "../../utils/vimBindings";
 
 const TERMINAL_INPUT_SELECTOR = ".xterm-helper-textarea";
@@ -27,9 +31,10 @@ function isVisible(element: Element): boolean {
 }
 
 /**
- * i focuses the current agent, Escape leaves it (Shift+Escape still reaches the
- * agent), and Space is the leader: q opens the Queue, a opens an agent, Space
- * jumps to the next finished agent.
+ * i focuses the current agent and Escape leaves it (Shift+Escape still reaches
+ * the agent). Space is the leader: q Queue, a agent, n new terminal in ~,
+ * Space next finished agent; on the Queue, c u / c n copy the PR's URL /
+ * number, p m nudges its agent to /prmerge it, and j / k move through the list.
  */
 export function DashboardSidebarVimBindings({
 	workspaceOrder,
@@ -40,27 +45,38 @@ export function DashboardSidebarVimBindings({
 	const matchRoute = useMatchRoute();
 	const utils = electronTrpc.useUtils();
 	const statuses = useSidebarWorkspaceStatuses();
-	const [leaderPending, setLeaderPending] = useState(false);
+	const openHomeTerminal = electronTrpc.vector.openHomeTerminal.useMutation();
+	// The keys typed after the leader, shown as a hint; null when the leader isn't pending.
+	const [leaderKeys, setLeaderKeys] = useState<string | null>(null);
 
 	// Read inside the one keydown listener, which is registered once.
-	const latest = useRef({ workspaceOrder, activeWorkspaceId, statuses });
-	latest.current = { workspaceOrder, activeWorkspaceId, statuses };
-	const isQueueOpen = !!matchRoute({ to: "/queue", fuzzy: true });
-	const isQueueOpenRef = useRef(isQueueOpen);
-	isQueueOpenRef.current = isQueueOpen;
+	const latest = useRef({
+		workspaceOrder,
+		activeWorkspaceId,
+		statuses,
+		isQueueOpen: false,
+		openHomeTerminal: openHomeTerminal.mutateAsync,
+	});
+	latest.current = {
+		workspaceOrder,
+		activeWorkspaceId,
+		statuses,
+		isQueueOpen: !!matchRoute({ to: "/queue", fuzzy: true }),
+		openHomeTerminal: openHomeTerminal.mutateAsync,
+	};
 	const lastAgent = useRef<{ workspaceId: string; input: Element } | null>(
 		null,
 	);
 
 	useEffect(() => {
-		let leader = false;
+		let leader: string | null = null;
 		let leaderTimer: ReturnType<typeof setTimeout> | undefined;
-		const setLeader = (pending: boolean) => {
-			leader = pending;
+		const setLeader = (keys: string | null) => {
+			leader = keys;
 			clearTimeout(leaderTimer);
-			setLeaderPending(pending);
-			if (pending) {
-				leaderTimer = setTimeout(() => setLeader(false), VIM_LEADER_TIMEOUT_MS);
+			setLeaderKeys(keys);
+			if (keys !== null) {
+				leaderTimer = setTimeout(() => setLeader(null), VIM_LEADER_TIMEOUT_MS);
 			}
 		};
 
@@ -96,16 +112,32 @@ export function DashboardSidebarVimBindings({
 				search: { terminalId, focusRequestId: crypto.randomUUID() },
 			});
 
-		const run = async (
-			action: ReturnType<typeof vimActionFor>,
-		): Promise<void> => {
-			const { workspaceOrder, activeWorkspaceId, statuses } = latest.current;
-			if (action === "focus-agent") {
+		const run = async (action: VimAction): Promise<void> => {
+			const { workspaceOrder, activeWorkspaceId, statuses, isQueueOpen } =
+				latest.current;
+			if (isVimPageAction(action)) {
+				// Only the Queue has a selection to act on today.
+				if (isQueueOpen) {
+					window.dispatchEvent(
+						new CustomEvent(VIM_PAGE_ACTION_EVENT, { detail: action }),
+					);
+				}
+			} else if (action === "focus-agent") {
 				focusAgent(activeWorkspaceId);
 			} else if (action === "open-queue") {
 				await navigate({ to: "/queue" });
+			} else if (action === "new-terminal") {
+				try {
+					const { workspaceId, terminalId } =
+						await latest.current.openHomeTerminal();
+					await openTerminal(workspaceId, terminalId);
+				} catch (error) {
+					toast.error(t({ message: "Couldn't open a terminal" }), {
+						description: (error as Error).message,
+					});
+				}
 			} else if (action === "open-agent") {
-				if (isQueueOpenRef.current) {
+				if (isQueueOpen) {
 					const items = await utils.queue.list.fetch();
 					const first = items.find((item) => item.status === "open");
 					if (first) {
@@ -161,19 +193,31 @@ export function DashboardSidebarVimBindings({
 				return;
 			}
 			if (event.key === "Escape") {
-				setLeader(false);
+				setLeader(null);
 				return;
 			}
-			const action = vimActionFor(event.key, leader);
-			if (leader) setLeader(false);
-			if (!action) return;
-			event.preventDefault();
-			event.stopPropagation();
-			if (action === "leader") {
-				setLeader(true);
-				return;
+			let action: VimAction | null = null;
+			if (leader !== null) {
+				const match = matchLeaderSequence(leader + event.key);
+				if (match === "pending") setLeader(leader + event.key);
+				else {
+					setLeader(null);
+					action = match;
+				}
+				event.preventDefault();
+				event.stopPropagation();
+			} else if (event.key === " ") {
+				setLeader("");
+				event.preventDefault();
+				event.stopPropagation();
+			} else {
+				action = normalModeAction(event.key);
+				if (action) {
+					event.preventDefault();
+					event.stopPropagation();
+				}
 			}
-			void run(action);
+			if (action) void run(action);
 		};
 
 		window.addEventListener("keydown", onKeyDown, true);
@@ -185,13 +229,21 @@ export function DashboardSidebarVimBindings({
 		};
 	}, [navigate, utils, t]);
 
-	if (!leaderPending) return null;
+	if (leaderKeys === null) return null;
 	return (
 		<div className="pointer-events-none fixed bottom-4 left-1/2 z-50 -translate-x-1/2 rounded-md border bg-popover px-3 py-1.5 text-popover-foreground text-xs shadow-md">
-			<Trans>
-				<span className="font-medium">Space</span> · q Queue · a agent · Space
-				next finished agent
-			</Trans>
+			<span className="font-medium">Space {leaderKeys}</span>
+			{leaderKeys === "" ? (
+				<Trans>
+					{" "}
+					· Space next finished agent · q Queue · a agent · n terminal · c copy
+					· p prmerge
+				</Trans>
+			) : leaderKeys === "c" ? (
+				<Trans> · u PR URL · n PR number</Trans>
+			) : leaderKeys === "p" ? (
+				<Trans> · m nudge the PR's agent to /prmerge</Trans>
+			) : null}
 		</div>
 	);
 }

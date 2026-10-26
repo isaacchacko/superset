@@ -1,16 +1,29 @@
 import { describe, expect, it } from "bun:test";
 import type { PaneStatus } from "shared/tabs-types";
-import { nextFinishedAgent, vimActionFor } from "./vimBindings";
+import {
+	matchLeaderSequence,
+	nextFinishedAgent,
+	normalModeAction,
+} from "./vimBindings";
 
-describe("vimActionFor", () => {
-	it("maps i and the Space leader", () => {
-		expect(vimActionFor("i", false)).toBe("focus-agent");
-		expect(vimActionFor(" ", false)).toBe("leader");
-		expect(vimActionFor("q", true)).toBe("open-queue");
-		expect(vimActionFor("a", true)).toBe("open-agent");
-		expect(vimActionFor(" ", true)).toBe("next-finished-agent");
-		expect(vimActionFor("q", false)).toBeNull();
-		expect(vimActionFor("x", true)).toBeNull();
+describe("vim keys", () => {
+	it("maps normal-mode keys", () => {
+		expect(normalModeAction("i")).toBe("focus-agent");
+		expect(normalModeAction("j")).toBe("next-item");
+		expect(normalModeAction("q")).toBeNull();
+	});
+
+	it("matches leader sequences, waiting on their prefixes", () => {
+		expect(matchLeaderSequence(" ")).toBe("next-finished-agent");
+		expect(matchLeaderSequence("q")).toBe("open-queue");
+		expect(matchLeaderSequence("n")).toBe("new-terminal");
+		expect(matchLeaderSequence("c")).toBe("pending");
+		expect(matchLeaderSequence("cu")).toBe("copy-pr-url");
+		expect(matchLeaderSequence("cn")).toBe("copy-pr-number");
+		expect(matchLeaderSequence("p")).toBe("pending");
+		expect(matchLeaderSequence("pm")).toBe("prmerge-pr");
+		expect(matchLeaderSequence("cx")).toBeNull();
+		expect(matchLeaderSequence("x")).toBeNull();
 	});
 });
 
