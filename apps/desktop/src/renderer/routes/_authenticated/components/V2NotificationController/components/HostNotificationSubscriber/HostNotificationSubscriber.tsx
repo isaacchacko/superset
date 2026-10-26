@@ -18,6 +18,7 @@ export interface HostNotificationWorkspaceState {
 	projectName?: string;
 	paneLayout: WorkspaceState<PaneViewerData> | null;
 	rightPaneLayout: WorkspaceState<PaneViewerData> | null;
+	alertsSuppressed?: boolean;
 }
 
 export function HostNotificationSubscriber({
@@ -52,6 +53,7 @@ export function HostNotificationSubscriber({
 				rightPaneLayout: workspace.rightPaneLayout,
 				volume,
 				muted,
+				alertsSuppressed: workspace.alertsSuppressed,
 			});
 		},
 	);

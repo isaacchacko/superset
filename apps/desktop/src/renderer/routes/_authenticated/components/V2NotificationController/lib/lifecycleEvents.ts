@@ -61,6 +61,7 @@ export function handleV2AgentLifecycleEvent({
 	rightPaneLayout,
 	volume,
 	muted,
+	alertsSuppressed = false,
 }: {
 	workspaceId: string;
 	workspaceName: string;
@@ -70,6 +71,7 @@ export function handleV2AgentLifecycleEvent({
 	rightPaneLayout?: PaneLayout;
 	volume: number;
 	muted: boolean;
+	alertsSuppressed?: boolean;
 }): void {
 	const layouts = getLocalPaneLayouts({
 		workspaceId,
@@ -94,6 +96,7 @@ export function handleV2AgentLifecycleEvent({
 	) {
 		return;
 	}
+	if (alertsSuppressed) return;
 	if (shouldSuppress(target, layouts)) return;
 
 	const ringtoneId = useRingtoneStore.getState().selectedRingtoneId;
