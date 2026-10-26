@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Rebase Vector's commits onto the latest upstream Superset and push main.
+# Rebase Vector's commits onto the latest upstream Superset and push main; Vector CI checks it.
 #
 #   vector/sync.sh
 #
@@ -26,8 +26,6 @@ if [ "$(git rev-parse HEAD)" = "$(git rev-parse origin/main)" ]; then
   exit 0
 fi
 
-bun install --frozen
-(cd apps/desktop && bun run typecheck && bun test src/shared/efforts.test.ts \
-  src/lib/trpc/routers/efforts src/renderer/routes/_authenticated/_dashboard/components/DashboardSidebar)
+# Vector CI typechecks and tests the pushed main on GitHub's runners.
 git push --quiet --force-with-lease origin main
 echo "main is $(git rev-list --count upstream/main..main) Vector commits on upstream $(git rev-parse --short upstream/main)"

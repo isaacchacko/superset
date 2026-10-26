@@ -24,7 +24,7 @@ Licensed like upstream, under the Elastic License 2.0 (`LICENSE.md`).
 vector/sync.sh
 ```
 
-Rebases `main` onto the latest `upstream/main`, typechecks, runs Vector's tests and force-pushes `main`. On a conflict it stops so you can resolve it and `git rebase --continue`. `rerere` is on, so a conflict resolved once is replayed automatically next time.
+Rebases `main` onto the latest `upstream/main` and force-pushes it. Vector CI (`.github/workflows/vector-ci.yml`, on GitHub's free runners) typechecks and runs Vector's tests on every push to `main` and `release/*`; nothing typechecks locally. Upstream's own workflows are disabled on the fork in the repository settings. On a conflict it stops so you can resolve it and `git rebase --continue`. `rerere` is on, so a conflict resolved once is replayed automatically next time.
 
 ## Build the app
 

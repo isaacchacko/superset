@@ -51,9 +51,8 @@ bun install --frozen
 # Vector's strings are not in upstream's catalogs; a release build would show their ids.
 (cd packages/i18n && bun run extract >/dev/null && python3 "$REPO/vector/fill-translations.py" locales)
 cd apps/desktop
-bun run typecheck
-bun test src/shared/efforts.test.ts src/lib/trpc/routers/efforts \
-  src/renderer/routes/_authenticated/_dashboard/components/DashboardSidebar
+# Typechecking is Vector CI's job (.github/workflows/vector-ci.yml), on GitHub's runners:
+# it is too expensive to repeat here. Build what CI passed.
 
 # A release build: production URLs are the defaults. Nothing from this shell's Superset
 # session may leak in (it would change the data folder or point at a dev backend).
@@ -61,7 +60,8 @@ for var in $(env | grep -oE '^SUPERSET_[A-Z_]+'); do unset "$var"; done
 export SUPERSET_WORKSPACE_NAME=superset NODE_ENV=production
 bun run install:deps
 bun run clean:dev
-bun run compile:app
+# The menus say Vector; productName stays Superset, so the data folder and keychain entry are shared.
+DESKTOP_DISPLAY_NAME=Vector bun run compile:app
 bun run copy:native-modules
 bun run validate:native-runtime
 # Upstream signs and notarizes with Superset's Apple account; this one is signed ad hoc.
@@ -69,6 +69,12 @@ CSC_IDENTITY_AUTO_DISCOVERY=false bunx electron-builder --config electron-builde
   --mac dir --arm64 -c.mac.notarize=false -c.mac.identity=-
 
 BUILT="$TREE/apps/desktop/$(ls -d release/mac-arm64/*.app | head -1)"
+# macOS shows another name only through InfoPlist.strings: setting CFBundleName itself makes
+# Electron miss its "<CFBundleName> Helper.app" and abort at launch (upstream fixed it this way).
+for lproj in "$BUILT"/Contents/Resources/*.lproj; do
+  printf '"CFBundleName" = "Vector";\n"CFBundleDisplayName" = "Vector";\n' > "$lproj/InfoPlist.strings"
+done
+codesign --force --deep --sign - "$BUILT"
 if pgrep -qf "$OUT/Contents/MacOS/" || pgrep -qf "$LEGACY/Contents/MacOS/"; then
   echo "built $BUILT from $BRANCH; Vector is running, so it was not installed." >&2
   echo "Quit it (⌘Q), then: rm -rf \"$OUT\" \"$LEGACY\" && cp -R \"$BUILT\" \"$OUT\"" >&2
