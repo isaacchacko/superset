@@ -33,6 +33,7 @@ import { createSettingsRouter } from "./settings";
 import { createSystemRouter } from "./system";
 import { createTerminalRouter } from "./terminal";
 import { createUiStateRouter } from "./ui-state";
+import { createVectorRouter } from "./vector";
 import { createWindowRouter } from "./window";
 import { createWorkspacesRouter } from "./workspaces";
 
@@ -73,6 +74,7 @@ export const createAppRouter = (getWindow: () => BrowserWindow | null) => {
 		migration: createMigrationRouter(),
 		efforts: createEffortsRouter(),
 		queue: createQueueRouter(),
+		vector: createVectorRouter(),
 	});
 };
 
