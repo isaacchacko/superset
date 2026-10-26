@@ -9,8 +9,9 @@ import {
 } from "renderer/routes/_authenticated/_dashboard/pull-requests/components/PullRequestDetailTabs";
 import { usePullRequestDetail } from "renderer/routes/_authenticated/_dashboard/pull-requests/hooks/usePullRequestDetail";
 import type { QueuePullRequest } from "shared/queue";
+import { QueueItemCard } from "../../../QueueItemCard";
 
-/** The Pull requests page's description and diff views, for one Queue PR. */
+/** A surfaced PR: the agent's note and Isaac's answer box, above the Pull requests page's description and diff. */
 export function QueuePullRequestDetail({
 	pullRequest,
 }: {
@@ -23,9 +24,9 @@ export function QueuePullRequestDetail({
 			projects.find(
 				(project) =>
 					`${project.repoOwner}/${project.repoName}`.toLowerCase() ===
-					pullRequest.repo.toLowerCase(),
+					pullRequest.item.pr.repo.toLowerCase(),
 			)?.projectKey ?? null,
-		[projects, pullRequest.repo],
+		[projects, pullRequest.item.pr.repo],
 	);
 	const { hostId } = useProjectHost(projectId);
 	const hostUrl = useHostUrl(hostId);
@@ -33,8 +34,8 @@ export function QueuePullRequestDetail({
 	const detail = usePullRequestDetail({
 		projectId,
 		hostUrl,
-		prNumber: pullRequest.number,
-		repoFullName: pullRequest.repo,
+		prNumber: pullRequest.item.pr.number,
+		repoFullName: pullRequest.item.pr.repo,
 	});
 	const data = detail.data ?? null;
 	const diffStat =
@@ -44,6 +45,9 @@ export function QueuePullRequestDetail({
 
 	return (
 		<div className="flex min-h-0 min-w-0 flex-1 select-text flex-col">
+			<div className="max-h-[45%] shrink-0 overflow-y-auto border-b p-3">
+				<QueueItemCard item={pullRequest.item} />
+			</div>
 			<div className="flex h-10 shrink-0 items-center border-b px-3">
 				<PullRequestDetailTabs
 					activeTab={activeTab}
@@ -56,7 +60,7 @@ export function QueuePullRequestDetail({
 				detail={detail}
 				projectId={detail.projectId}
 				repoFullName={detail.repoFullName}
-				prNumber={pullRequest.number}
+				prNumber={pullRequest.item.pr.number}
 				hostUrl={hostUrl}
 				hostId={hostId}
 				commentTarget={null}

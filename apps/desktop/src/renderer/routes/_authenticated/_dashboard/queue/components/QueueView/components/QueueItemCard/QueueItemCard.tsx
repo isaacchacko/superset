@@ -93,7 +93,9 @@ export function QueueItemCard({ item, position }: QueueItemCardProps) {
 										? t({ message: "You asked:" })
 										: entry.kind === "withdrawn"
 											? t({ message: "The agent withdrew it:" })
-											: t({ message: "Agent:" })}
+											: entry.from === "github"
+												? t({ message: "GitHub:" })
+												: t({ message: "Agent:" })}
 							</span>{" "}
 							{entry.text}
 						</li>
