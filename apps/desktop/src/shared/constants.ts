@@ -32,6 +32,7 @@ export const NOTIFICATION_EVENTS = {
 	AGENT_LIFECYCLE: "agent-lifecycle",
 	FOCUS_TAB: "focus-tab",
 	FOCUS_V2_NOTIFICATION_SOURCE: "focus-v2-notification-source",
+	OPEN_PAGE: "open-page",
 	TERMINAL_EXIT: "terminal-exit",
 	SETTINGS_EXTERNAL_CHANGE: "settings-external-change",
 } as const;

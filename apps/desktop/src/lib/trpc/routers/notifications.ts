@@ -1,3 +1,4 @@
+import type { DesktopNotificationPage } from "@superset/shared/desktop-notification";
 import { observable } from "@trpc/server/observable";
 import type {
 	BrowserWindow,
@@ -30,6 +31,10 @@ type NotificationEvent =
 	| {
 			type: typeof NOTIFICATION_EVENTS.FOCUS_V2_NOTIFICATION_SOURCE;
 			data?: V2NotificationSourceFocusTarget;
+	  }
+	| {
+			type: typeof NOTIFICATION_EVENTS.OPEN_PAGE;
+			data?: { page: DesktopNotificationPage };
 	  }
 	| {
 			type: typeof NOTIFICATION_EVENTS.TERMINAL_EXIT;
@@ -157,6 +162,10 @@ export const createNotificationsRouter = (
 					});
 				};
 
+				const onOpenPage = (data: { page: DesktopNotificationPage }) => {
+					emit.next({ type: NOTIFICATION_EVENTS.OPEN_PAGE, data });
+				};
+
 				const onTerminalExit = (data: TerminalExitNotification) => {
 					emit.next({ type: NOTIFICATION_EVENTS.TERMINAL_EXIT, data });
 				};
@@ -177,6 +186,7 @@ export const createNotificationsRouter = (
 					NOTIFICATION_EVENTS.FOCUS_V2_NOTIFICATION_SOURCE,
 					onFocusV2NotificationSource,
 				);
+				notificationsEmitter.on(NOTIFICATION_EVENTS.OPEN_PAGE, onOpenPage);
 				notificationsEmitter.on(
 					NOTIFICATION_EVENTS.TERMINAL_EXIT,
 					onTerminalExit,
@@ -196,6 +206,7 @@ export const createNotificationsRouter = (
 						NOTIFICATION_EVENTS.FOCUS_V2_NOTIFICATION_SOURCE,
 						onFocusV2NotificationSource,
 					);
+					notificationsEmitter.off(NOTIFICATION_EVENTS.OPEN_PAGE, onOpenPage);
 					notificationsEmitter.off(
 						NOTIFICATION_EVENTS.TERMINAL_EXIT,
 						onTerminalExit,

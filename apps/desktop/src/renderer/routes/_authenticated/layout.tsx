@@ -139,6 +139,14 @@ function AuthenticatedLayout() {
 	electronTrpc.notifications.subscribe.useSubscription(undefined, {
 		onData: (event) => {
 			if (
+				event.type === NOTIFICATION_EVENTS.OPEN_PAGE &&
+				event.data?.page === "queue"
+			) {
+				void navigate({ to: "/queue" });
+				return;
+			}
+
+			if (
 				event.type === NOTIFICATION_EVENTS.FOCUS_V2_NOTIFICATION_SOURCE &&
 				event.data
 			) {
