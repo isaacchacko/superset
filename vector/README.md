@@ -9,6 +9,7 @@ Licensed like upstream, under the Elastic License 2.0 (`LICENSE.md`).
 `git log upstream/main..main` is the whole list. Today:
 
 - **Efforts in the sidebar.** An Efforts section above Sessions shows each effort (one root task, from the `effort` CLI): its sentinel, children, working/need-you counts, PRs and open tasks. Children of an effort never chime; the sentinel raises the alerts that need Isaac.
+- **Queue.** A sidebar page of the decisions agents raised with `effort ask`, oldest first. Answer each with a decision or a follow-up question; the answer is typed into the asking agent's terminal.
 - **No self-update.** Upstream's updater would replace a Vector build with stock Superset.
 - **`vector/`**: this folder, the scripts that keep Vector building and current.
 
