@@ -1,7 +1,7 @@
 import { randomBytes } from "node:crypto";
 import { existsSync, writeFileSync } from "node:fs";
 import { readdir, rm, stat } from "node:fs/promises";
-import { tmpdir } from "node:os";
+import { homedir, tmpdir } from "node:os";
 import { basename, isAbsolute, join } from "node:path";
 import { StringDecoder } from "node:string_decoder";
 import type { NodeWebSocket } from "@hono/node-ws";
@@ -2929,6 +2929,15 @@ interface CreateTerminalSessionOptions {
 	restoredNotice?: boolean;
 }
 
+/** Vector's home workspace (`Space n`): a session whose folder holds this marker opens its terminals in ~. */
+export const HOME_WORKSPACE_MARKER = ".vector-home";
+
+function defaultTerminalCwd(worktreePath: string): string {
+	return existsSync(join(worktreePath, HOME_WORKSPACE_MARKER))
+		? homedir()
+		: worktreePath;
+}
+
 function resolveTerminalCwd(
 	cwdOverride: string | undefined,
 	worktreePath: string,
@@ -3077,7 +3086,10 @@ async function createTerminalSessionUnlocked({
 		rootPath = project.repoPath;
 	}
 
-	const cwd = resolveTerminalCwd(cwdOverride, workspace.worktreePath);
+	const cwd = resolveTerminalCwd(
+		cwdOverride,
+		defaultTerminalCwd(workspace.worktreePath),
+	);
 	// Adoption overrides these with the PTY's live dims below: the session's
 	// belief must match the kernel's, or the reanchor repaint logic misjudges
 	// whether a client resize will deliver a real SIGWINCH.
