@@ -8,14 +8,16 @@ Things Isaac wants changed in Vector (and the `effort` CLI that drives it). Newe
 
 ## Todo
 
-- **Queue alerts open the Queue page.** Today `effort ask`'s alert opens the asking agent's workspace. Needs a notification target for an app route, which `superset notifications show` doesn't have.
 - **Show background work in the sidebar.** A sentinel waiting on its subagents shows as idle with no agent badge; the Efforts group should say research is running.
 - **Research that needs no branch has a place in an effort.** Today it only fits in the sentinel's own subagents (from the bundling effort's handoff).
 
 ## Doing
 
+- **Vim-like bindings, starting small.** Asked 2026-10-26: "i to enter insert mode on current agent, escape to unfocus current agent. <leader> is space. leader q opens queue, leader a to open agent, leader leader to jump to next finished agent (excluding children of efforts)." Isaac plans to expand this later.
+
 ## Done
 
+- Queue alerts open the Queue page: `superset notifications show --page queue` (2026-10-26).
 - The app installs as `~/Applications/Vector.app` (was `Superset Efforts.app`); takes effect on the next build (2026-10-26).
 - `effort ask --withdraw`, and `effort queue`/`answer` on wevawie use the MacBook's Queue (2026-10-26).
 - Every agent knows the Queue: a rule in the global CLAUDE.md on both machines, and sentinels decide autonomously, asking only for money, outward or irreversible, and customer-visible calls (2026-10-26).

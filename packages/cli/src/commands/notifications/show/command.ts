@@ -1,4 +1,5 @@
 import { boolean, CLIError, positional, string } from "@superset/cli-framework";
+import { DESKTOP_NOTIFICATION_PAGES } from "@superset/shared/desktop-notification";
 import { command } from "../../../lib/command";
 import { resolveHostClient } from "../../../lib/resolve-host-client";
 
@@ -18,6 +19,12 @@ function clickTarget(options: {
 	return workspaceId && terminalId ? { workspaceId, terminalId } : undefined;
 }
 
+function isNotificationPage(
+	page: string,
+): page is (typeof DESKTOP_NOTIFICATION_PAGES)[number] {
+	return (DESKTOP_NOTIFICATION_PAGES as readonly string[]).includes(page);
+}
+
 export default command({
 	description:
 		"Show a desktop notification; clicking it opens the terminal that sent it",
@@ -34,16 +41,27 @@ export default command({
 		host: string().desc(
 			"Host whose desktop app shows it (default: this machine)",
 		),
+		page: string().desc(
+			`Page to open on click instead of a terminal: ${DESKTOP_NOTIFICATION_PAGES.join(", ")}`,
+		),
 	},
 	run: async ({ ctx, args, options }) => {
+		const page = options.page ?? undefined;
+		if (page !== undefined && !isNotificationPage(page)) {
+			throw new CLIError(
+				`Unknown page "${page}"`,
+				`Use one of: ${DESKTOP_NOTIFICATION_PAGES.join(", ")}`,
+			);
+		}
 		const client = await resolveHostClient(ctx, options);
-		const target = clickTarget(options);
+		const target = page ? undefined : clickTarget(options);
 		const result = await client.notifications.show
 			.mutate({
 				title: args.title as string,
 				body: options.body ?? undefined,
 				sound: options.sound ?? false,
 				target,
+				page,
 			})
 			.catch((error: unknown) => {
 				if (
