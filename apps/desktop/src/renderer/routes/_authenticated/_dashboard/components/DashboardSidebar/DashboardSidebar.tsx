@@ -43,6 +43,7 @@ import {
 } from "./components/DashboardSidebarActiveWorkspaceSwitcher";
 import { DashboardSidebarBulkActions } from "./components/DashboardSidebarBulkActions";
 import { DashboardSidebarBulkDeleteMount } from "./components/DashboardSidebarBulkDeleteMount";
+import { DashboardSidebarEffortsSection } from "./components/DashboardSidebarEffortsSection";
 import { DashboardSidebarGithubNotice } from "./components/DashboardSidebarGithubNotice";
 import { DashboardSidebarHeader } from "./components/DashboardSidebarHeader";
 import { DashboardSidebarHiddenProjects } from "./components/DashboardSidebarHiddenProjects";
@@ -62,6 +63,7 @@ import { useDashboardSidebarData } from "./hooks/useDashboardSidebarData";
 import { useDashboardSidebarShortcuts } from "./hooks/useDashboardSidebarShortcuts";
 import { useMigrateLegacySidebarFolders } from "./hooks/useMigrateLegacySidebarFolders";
 import { useDashboardSidebarDnd } from "./hooks/useSidebarDnd";
+import { useSidebarEfforts } from "./hooks/useSidebarEfforts";
 import { DashboardSidebarDndProvider } from "./providers/DashboardSidebarDndProvider";
 import { DashboardSidebarHoverProvider } from "./providers/DashboardSidebarHoverProvider";
 import { DashboardSidebarSelectionProvider } from "./providers/DashboardSidebarSelectionProvider";
@@ -163,6 +165,7 @@ export const DashboardSidebar = memo(function DashboardSidebar({
 	const isCloudEnabled =
 		useFeatureFlagEnabled(FEATURE_FLAGS.CLOUD_WORKSPACES) === true;
 	const {
+		efforts,
 		groups,
 		hiddenProjects,
 		pinnedWorkspaces,
@@ -171,7 +174,7 @@ export const DashboardSidebar = memo(function DashboardSidebar({
 		githubStatus,
 		refreshWorkspacePullRequest,
 		toggleProjectCollapsed,
-	} = useDashboardSidebarData();
+	} = useSidebarEfforts(useDashboardSidebarData());
 	const {
 		deleteSection,
 		reorderProjects,
@@ -356,6 +359,18 @@ export const DashboardSidebar = memo(function DashboardSidebar({
 				byId.set(workspace.id, { id: workspace.id, hostId: workspace.hostId });
 			}
 		}
+		for (const effort of efforts) {
+			for (const workspace of [
+				effort.sentinel,
+				...effort.children.map((child) => child.workspace),
+			]) {
+				if (workspace)
+					byId.set(workspace.id, {
+						id: workspace.id,
+						hostId: workspace.hostId,
+					});
+			}
+		}
 		for (const cloud of cloudWorkspaces ?? []) {
 			byId.set(cloud.id, {
 				id: cloud.id,
@@ -365,7 +380,13 @@ export const DashboardSidebar = memo(function DashboardSidebar({
 			});
 		}
 		return [...byId.values()];
-	}, [pinnedWorkspaces, sessionWorkspaces, orderedGroups, cloudWorkspaces]);
+	}, [
+		pinnedWorkspaces,
+		sessionWorkspaces,
+		orderedGroups,
+		efforts,
+		cloudWorkspaces,
+	]);
 
 	const { data: session } = authClient.useSession();
 	const userId = session?.user?.id ?? null;
@@ -400,6 +421,19 @@ export const DashboardSidebar = memo(function DashboardSidebar({
 				});
 			}
 		}
+		for (const effort of efforts) {
+			for (const child of effort.children) {
+				byId.set(child.workspace.id, {
+					id: child.workspace.id,
+					name: child.workspace.name,
+					detail: child.projectName,
+				});
+			}
+			if (effort.sentinel) {
+				const { id, name } = effort.sentinel;
+				byId.set(id, { id, name, detail: null });
+			}
+		}
 		for (const cloud of cloudWorkspaces ?? []) {
 			if (!isInCloudSidebar(cloud, cloudSidebarEntries[cloud.id], userId))
 				continue;
@@ -410,6 +444,7 @@ export const DashboardSidebar = memo(function DashboardSidebar({
 		pinnedWorkspaces,
 		sessionWorkspaces,
 		sortedGroups,
+		efforts,
 		cloudWorkspaces,
 		userId,
 		cloudSidebarEntries,
@@ -514,6 +549,11 @@ export const DashboardSidebar = memo(function DashboardSidebar({
 												onWorkspaceHover={refreshWorkspacePullRequest}
 											/>
 										)}
+										<DashboardSidebarEffortsSection
+											efforts={efforts}
+											isCollapsed={isCollapsed}
+											onWorkspaceHover={refreshWorkspacePullRequest}
+										/>
 										<DashboardSidebarSessionsSection
 											sessionWorkspaces={displayedSessionWorkspaces}
 											isCollapsed={isCollapsed}
