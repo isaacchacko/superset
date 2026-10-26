@@ -28,12 +28,16 @@ Rebases `main` onto the latest `upstream/main` and force-pushes it. Vector CI (`
 
 ## Build the app
 
+Vector is built on GitHub's free macOS runners, not on Isaac's machine:
+
 ```sh
-vector/build.sh                  # on the release /Applications/Superset.app runs
-vector/build.sh desktop-v1.41.0  # on a given release
+vector/release.sh             # bring release/<tag> up to date with main's Vector commits and push it
+vector/install.sh --restart   # once Vector CI is green: download its build, install it, reopen Vector
 ```
 
-Checks out `release/<tag>` in `~/Programs/vector-release` (made from the tag the first time), cherry-picks any Vector commits it lacks, pushes it, and builds `~/Applications/Vector.app`. If that app is running, it builds but leaves installing to you, and prints the one command to do it.
+`release.sh` uses the release `/Applications/Superset.app` runs unless given a tag. It checks out `release/<tag>` in `~/Programs/vector-release` (made from the tag the first time), cherry-picks any Vector commits it lacks and pushes it. Vector CI typechecks it, then builds `Vector.app` with `vector/build-app.sh` and uploads it. `install.sh` downloads the newest green build and installs it at `~/Applications/Vector.app`; without `--restart` it stages it and prints the one command to swap it in while Vector is running.
+
+`vector/build.sh` does the same build locally, for when CI isn't an option.
 
 The app is still "Superset" inside: the same app id, product name, `~/.superset`, `~/Library/Application Support/Superset` and keychain entry. So it shares the stock app's settings, sign-in, hosts, workspaces and terminals, with nothing to sync.
 
