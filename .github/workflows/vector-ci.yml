@@ -30,6 +30,14 @@ jobs:
       - name: Install dependencies
         run: bun install --frozen --ignore-scripts
 
+      - name: Translation catalogs
+        # Vector's strings aren't in upstream's catalogs; fill them in English as build.sh does.
+        working-directory: packages/i18n
+        run: |
+          bun run extract > /dev/null
+          python3 ../../vector/fill-translations.py locales
+          bun run compile
+
       - name: Typecheck the desktop app
         working-directory: apps/desktop
         run: bun run typecheck
