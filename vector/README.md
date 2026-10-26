@@ -33,7 +33,7 @@ vector/build.sh                  # on the release /Applications/Superset.app run
 vector/build.sh desktop-v1.41.0  # on a given release
 ```
 
-Checks out `release/<tag>` in `~/Programs/vector-release` (made from the tag the first time), cherry-picks any Vector commits it lacks, pushes it, and builds `~/Applications/Superset Efforts.app`. If that app is running, it builds but leaves installing to you, and prints the one command to do it.
+Checks out `release/<tag>` in `~/Programs/vector-release` (made from the tag the first time), cherry-picks any Vector commits it lacks, pushes it, and builds `~/Applications/Vector.app`. If that app is running, it builds but leaves installing to you, and prints the one command to do it.
 
 The app is still "Superset" inside: the same app id, product name, `~/.superset`, `~/Library/Application Support/Superset` and keychain entry. So it shares the stock app's settings, sign-in, hosts, workspaces and terminals, with nothing to sync.
 
