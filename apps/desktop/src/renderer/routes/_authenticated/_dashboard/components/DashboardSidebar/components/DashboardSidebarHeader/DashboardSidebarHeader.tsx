@@ -18,6 +18,7 @@ import {
 	LuClock,
 	LuFileText,
 	LuGauge,
+	LuInbox,
 	LuLayers,
 	LuPlus,
 	LuPuzzle,
@@ -54,6 +55,7 @@ import {
 	WINDOW_CONTROLS_ROW_TOP,
 } from "renderer/routes/_authenticated/_dashboard/components/WindowChrome";
 import { useFailedAutomations } from "renderer/routes/_authenticated/_dashboard/hooks/useFailedAutomations";
+import { useQueueWaitingCount } from "renderer/routes/_authenticated/_dashboard/hooks/useQueueWaitingCount";
 import { useShowsAppTopBar } from "renderer/routes/_authenticated/_dashboard/hooks/useShowsAppTopBar";
 import {
 	pullRequestsSearchFromFilters,
@@ -172,6 +174,8 @@ export function DashboardSidebarHeader({
 	const isAutomationsOpen = !!matchRoute({ to: "/automations", fuzzy: true });
 	const isPluginsOpen = !!matchRoute({ to: "/plugins", fuzzy: true });
 	const isPagesOpen = !!matchRoute({ to: "/pages", fuzzy: true });
+	const isQueueOpen = !!matchRoute({ to: "/queue", fuzzy: true });
+	const queueWaitingCount = useQueueWaitingCount();
 	// `?? false`: the hook returns undefined until PostHog flags resolve.
 	// Dev builds bypass the flag — the local dev account isn't in the
 	// @superset.sh release condition.
@@ -255,6 +259,10 @@ export function DashboardSidebarHeader({
 
 	const handlePagesClick = () => {
 		navigate({ to: "/pages" });
+	};
+
+	const handleQueueClick = () => {
+		navigate({ to: "/queue" });
 	};
 
 	const handlePluginsClick = () => {
@@ -368,6 +376,44 @@ export function DashboardSidebarHeader({
 						</TooltipTrigger>
 						<TooltipContent side="right">
 							<Trans>Workspaces</Trans>
+						</TooltipContent>
+					</Tooltip>
+
+					<Tooltip delayDuration={300}>
+						<TooltipTrigger asChild>
+							<button
+								type="button"
+								onClick={handleQueueClick}
+								aria-label={
+									queueWaitingCount > 0
+										? t({
+												message: `Queue, ${queueWaitingCount} waiting on you`,
+											})
+										: t({ message: "Queue" })
+								}
+								aria-current={isQueueOpen ? "page" : undefined}
+								className={cn(
+									"relative flex size-7 items-center justify-center rounded-md transition-colors",
+									isQueueOpen
+										? "bg-fill-selected text-muted-foreground"
+										: "text-muted-foreground hover:bg-fill-hover",
+								)}
+							>
+								<LuInbox className="size-3.5" strokeWidth={1.5} />
+								{queueWaitingCount > 0 && (
+									<span
+										aria-hidden="true"
+										className="absolute right-1 top-1 size-1.5 rounded-full bg-amber-500"
+									/>
+								)}
+							</button>
+						</TooltipTrigger>
+						<TooltipContent side="right">
+							{queueWaitingCount > 0 ? (
+								<Trans>Queue ({queueWaitingCount} waiting on you)</Trans>
+							) : (
+								<Trans>Queue</Trans>
+							)}
 						</TooltipContent>
 					</Tooltip>
 
@@ -676,6 +722,36 @@ export function DashboardSidebarHeader({
 				<span className="flex-1 text-left">
 					<Trans>Workspaces</Trans>
 				</span>
+			</button>
+
+			<button
+				type="button"
+				onClick={handleQueueClick}
+				aria-current={isQueueOpen ? "page" : undefined}
+				className={cn(
+					"flex h-7 w-full items-center gap-2 rounded-md px-2 text-[13px] font-medium transition-colors",
+					isQueueOpen
+						? "bg-fill-selected text-foreground"
+						: "text-muted-foreground hover:bg-fill-hover hover:text-foreground",
+				)}
+			>
+				<LuInbox
+					className="size-4 shrink-0 text-muted-foreground"
+					strokeWidth={1.5}
+				/>
+				<span className="flex-1 text-left">
+					<Trans>Queue</Trans>
+				</span>
+				{queueWaitingCount > 0 && (
+					<span
+						title={t({
+							message: `${queueWaitingCount} waiting on you`,
+						})}
+						className="flex h-4 min-w-4 items-center justify-center rounded-full bg-amber-500/15 px-1 text-[10px] font-medium tabular-nums text-amber-600 dark:text-amber-400"
+					>
+						{queueWaitingCount > 9 ? "9+" : queueWaitingCount}
+					</span>
+				)}
 			</button>
 
 			<div className="relative">
