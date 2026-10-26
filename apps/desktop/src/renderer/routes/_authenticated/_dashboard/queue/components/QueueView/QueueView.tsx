@@ -1,85 +1,87 @@
 import { Trans } from "@lingui/react/macro";
-import { useState } from "react";
-import { LuChevronRight } from "react-icons/lu";
+import { cn } from "@superset/ui/utils";
 import { electronTrpc } from "renderer/lib/electron-trpc";
 import { PageHeader } from "renderer/routes/_authenticated/_dashboard/components/PageHeader";
-import { partitionQueue } from "shared/queue";
-import { QueueItemCard } from "./components/QueueItemCard";
+import { NOTIFICATION_EVENTS } from "shared/constants";
+import type { QueueTab } from "../../page";
+import { QueueDecisions } from "./components/QueueDecisions";
+import { QueuePullRequests } from "./components/QueuePullRequests";
 
 export const QUEUE_REFRESH_MS = 3_000;
-const ANSWERED_SHOWN = 20;
+export const QUEUE_PULL_REQUESTS_REFRESH_MS = 30_000;
 
-/** Decisions agents raised with `effort ask`, oldest first. */
-export function QueueView() {
-	const { data: items = [], isLoading } = electronTrpc.queue.list.useQuery(
+const TABS: QueueTab[] = ["decisions", "prs"];
+
+interface QueueViewProps {
+	tab: QueueTab;
+	onTabChange: (tab: QueueTab) => void;
+}
+
+/** What waits on Isaac, oldest first: decisions agents raised, and the PRs they opened. */
+export function QueueView({ tab, onTabChange }: QueueViewProps) {
+	const { data: items = [] } = electronTrpc.queue.list.useQuery(undefined, {
+		refetchInterval: QUEUE_REFRESH_MS,
+	});
+	const { data: pullRequests } = electronTrpc.queue.pullRequests.useQuery(
 		undefined,
-		{ refetchInterval: QUEUE_REFRESH_MS },
+		{ refetchInterval: QUEUE_PULL_REQUESTS_REFRESH_MS },
 	);
-	const [showAnswered, setShowAnswered] = useState(false);
-	const { waitingOnIsaac, waitingOnAgent, answered } = partitionQueue(items);
+	const decisionCount = items.filter((item) => item.status === "open").length;
+
+	// Cmd+H / Cmd+L, caught in the main process before the menu's Hide.
+	electronTrpc.notifications.subscribe.useSubscription(undefined, {
+		onData: (event) => {
+			if (event.type !== NOTIFICATION_EVENTS.QUEUE_TAB || !event.data) return;
+			const index = TABS.indexOf(tab);
+			const next = event.data.direction === "left" ? index - 1 : index + 1;
+			const target = TABS[Math.min(Math.max(next, 0), TABS.length - 1)];
+			if (target && target !== tab) onTabChange(target);
+		},
+	});
+
+	const tabButton = (
+		value: QueueTab,
+		label: React.ReactNode,
+		count?: number,
+	) => (
+		<button
+			type="button"
+			onClick={() => onTabChange(value)}
+			aria-current={tab === value ? "page" : undefined}
+			className={cn(
+				"flex h-8 items-center gap-1.5 rounded-md px-3 text-sm transition-colors",
+				tab === value
+					? "bg-accent text-foreground"
+					: "text-muted-foreground hover:text-foreground",
+			)}
+		>
+			{label}
+			{count !== undefined && (
+				<span className="text-muted-foreground text-xs tabular-nums">
+					{count}
+				</span>
+			)}
+		</button>
+	);
 
 	return (
 		<div className="flex h-full w-full flex-1 flex-col overflow-hidden">
 			<PageHeader />
-			<div className="min-h-0 flex-1 overflow-y-auto">
-				<div className="mx-auto flex w-full max-w-3xl flex-col px-8 pt-4 pb-12">
-					<h1 className="font-semibold text-xl tracking-tight">
-						<Trans>Queue</Trans>
-					</h1>
-					<p className="mt-1 text-muted-foreground text-sm">
-						<Trans>
-							Decisions your agents are waiting on, oldest first. Decide, or ask
-							a follow-up; the answer goes straight to the agent's terminal.
-						</Trans>
-					</p>
-
-					<div className="mt-6 flex flex-col gap-3">
-						{waitingOnIsaac.map((item, index) => (
-							<QueueItemCard key={item.id} item={item} position={index + 1} />
-						))}
-						{!isLoading && waitingOnIsaac.length === 0 && (
-							<div className="rounded-lg border border-dashed px-4 py-8 text-center text-muted-foreground text-sm">
-								<Trans>Nothing is waiting on you.</Trans>
-							</div>
-						)}
-					</div>
-
-					{waitingOnAgent.length > 0 && (
-						<section className="mt-8">
-							<h2 className="mb-2 font-medium text-muted-foreground text-xs uppercase tracking-[0.075em]">
-								<Trans>Waiting on the agent ({waitingOnAgent.length})</Trans>
-							</h2>
-							<div className="flex flex-col gap-2">
-								{waitingOnAgent.map((item) => (
-									<QueueItemCard key={item.id} item={item} />
-								))}
-							</div>
-						</section>
-					)}
-
-					{answered.length > 0 && (
-						<section className="mt-8">
-							<button
-								type="button"
-								onClick={() => setShowAnswered((shown) => !shown)}
-								className="mb-2 flex items-center gap-1 font-medium text-muted-foreground text-xs uppercase tracking-[0.075em] hover:text-foreground"
-							>
-								<LuChevronRight
-									className={`size-3.5 transition-transform ${showAnswered ? "rotate-90" : ""}`}
-								/>
-								<Trans>Answered ({answered.length})</Trans>
-							</button>
-							{showAnswered && (
-								<div className="flex flex-col gap-2">
-									{answered.slice(0, ANSWERED_SHOWN).map((item) => (
-										<QueueItemCard key={item.id} item={item} />
-									))}
-								</div>
-							)}
-						</section>
-					)}
-				</div>
+			<div className="flex shrink-0 items-center gap-1 px-8 pb-3">
+				<h1 className="mr-4 font-semibold text-xl tracking-tight">
+					<Trans>Queue</Trans>
+				</h1>
+				{tabButton("decisions", <Trans>Decisions</Trans>, decisionCount)}
+				{tabButton("prs", <Trans>PRs</Trans>, pullRequests?.length)}
+				<span className="ml-auto text-muted-foreground text-xs">
+					<Trans>⌘H / ⌘L switch tabs</Trans>
+				</span>
 			</div>
+			{tab === "decisions" ? (
+				<QueueDecisions items={items} />
+			) : (
+				<QueuePullRequests pullRequests={pullRequests} />
+			)}
 		</div>
 	);
 }

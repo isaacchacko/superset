@@ -33,6 +33,7 @@ export const NOTIFICATION_EVENTS = {
 	FOCUS_TAB: "focus-tab",
 	FOCUS_V2_NOTIFICATION_SOURCE: "focus-v2-notification-source",
 	OPEN_PAGE: "open-page",
+	QUEUE_TAB: "queue-tab",
 	TERMINAL_EXIT: "terminal-exit",
 	SETTINGS_EXTERNAL_CHANGE: "settings-external-change",
 } as const;
