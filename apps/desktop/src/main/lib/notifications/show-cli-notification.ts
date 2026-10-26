@@ -18,6 +18,12 @@ export function showCliNotification(input: DesktopNotification): boolean {
 		if (window?.isMinimized()) window.restore();
 		window?.show();
 		window?.focus();
+		if (input.page) {
+			notificationsEmitter.emit(NOTIFICATION_EVENTS.OPEN_PAGE, {
+				page: input.page,
+			});
+			return;
+		}
 		if (!input.target) return;
 		notificationsEmitter.emit(
 			NOTIFICATION_EVENTS.FOCUS_V2_NOTIFICATION_SOURCE,
