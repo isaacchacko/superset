@@ -101,14 +101,30 @@ export function partitionQueue(
 	};
 }
 
-/** A PR an agent surfaced to Isaac, with what GitHub says about it now. */
-export interface QueuePullRequest {
-	item: QueueItem & { pr: NonNullable<QueueItem["pr"]> };
+/** What GitHub says about a surfaced PR now. */
+export interface QueuePullRequestStatus {
 	title: string;
 	isDraft: boolean;
+	state: "OPEN" | "MERGED" | "CLOSED";
 	reviewDecision: string | null;
 	/** GitHub auto-merge is armed: /prmerge has it. */
 	autoMergeAt: string | null;
 	/** When Space p m last told its agent to /prmerge it. */
 	nudgedAt: string | null;
+}
+
+/** A PR an agent surfaced to Isaac; `status` is null until GitHub answers. */
+export interface QueuePullRequest {
+	item: QueueItem & { pr: NonNullable<QueueItem["pr"]> };
+	status: QueuePullRequestStatus | null;
+}
+
+/** The surfaced PRs still waiting on Isaac or their agent, oldest first. */
+export function surfacedPullRequestItems(
+	items: QueueItem[],
+): QueuePullRequest["item"][] {
+	return sortQueueItems(items).filter(
+		(item): item is QueuePullRequest["item"] =>
+			!!item.pr && (item.status === "open" || item.status === "followup"),
+	);
 }
