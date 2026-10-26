@@ -34,7 +34,7 @@ export function QueuePullRequests({ pullRequests }: QueuePullRequestsProps) {
 	const prmerge = electronTrpc.queue.prmerge.useMutation({
 		onSuccess: ({ message }) => {
 			toast.success(message);
-			utils.queue.pullRequests.invalidate();
+			utils.queue.pullRequestStatuses.invalidate();
 		},
 		onError: (error) =>
 			toast.error(t({ message: "Couldn't nudge the PR's agent" }), {
