@@ -3,6 +3,7 @@ import { cn } from "@superset/ui/utils";
 import { electronTrpc } from "renderer/lib/electron-trpc";
 import { PageHeader } from "renderer/routes/_authenticated/_dashboard/components/PageHeader";
 import { NOTIFICATION_EVENTS } from "shared/constants";
+import { type QueuePullRequest, surfacedPullRequestItems } from "shared/queue";
 import type { QueueTab } from "../../page";
 import { QueueDecisions } from "./components/QueueDecisions";
 import { QueuePullRequests } from "./components/QueuePullRequests";
@@ -22,10 +23,22 @@ export function QueueView({ tab, onTabChange }: QueueViewProps) {
 	const { data: items = [] } = electronTrpc.queue.list.useQuery(undefined, {
 		refetchInterval: QUEUE_REFRESH_MS,
 	});
-	const { data: pullRequests } = electronTrpc.queue.pullRequests.useQuery(
-		undefined,
-		{ refetchInterval: QUEUE_PULL_REQUESTS_REFRESH_MS },
-	);
+	// The PR list comes from the Queue itself, so a surfaced PR shows at once;
+	// GitHub's view of each fills in when it answers, again whenever the set changes.
+	const pullRequestItems = surfacedPullRequestItems(items);
+	const { data: statuses = {} } =
+		electronTrpc.queue.pullRequestStatuses.useQuery(
+			{ ids: pullRequestItems.map((item) => item.id) },
+			{
+				enabled: pullRequestItems.length > 0,
+				refetchInterval: QUEUE_PULL_REQUESTS_REFRESH_MS,
+				placeholderData: (previous) => previous,
+			},
+		);
+	const pullRequests: QueuePullRequest[] = pullRequestItems
+		.map((item) => ({ item, status: statuses[item.id] ?? null }))
+		// Merged or closed: settled on the next Queue read.
+		.filter(({ status }) => !status || status.state === "OPEN");
 	const decisionCount = items.filter(
 		(item) => item.status === "open" && !item.pr,
 	).length;

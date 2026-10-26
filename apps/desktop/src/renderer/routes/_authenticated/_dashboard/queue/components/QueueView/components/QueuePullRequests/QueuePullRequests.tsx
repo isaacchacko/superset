@@ -63,7 +63,7 @@ export function QueuePullRequests({ pullRequests }: QueuePullRequestsProps) {
 			if (action === "copy-pr-url") void copy(pr.url);
 			else if (action === "copy-pr-number") void copy(String(pr.number));
 			else if (action === "prmerge-pr") {
-				if (selected.autoMergeAt) {
+				if (selected.status?.autoMergeAt) {
 					toast(t({ message: `#${pr.number} is already set to merge` }));
 					return;
 				}
@@ -119,7 +119,7 @@ export function QueuePullRequests({ pullRequests }: QueuePullRequestsProps) {
 									</span>
 								</span>
 								<span className="line-clamp-2 text-sm leading-snug">
-									{pullRequest.title}
+									{pullRequest.status?.title ?? item.question}
 								</span>
 								<span className="line-clamp-2 text-muted-foreground text-xs">
 									{item.asker.label}: {item.question}
@@ -142,10 +142,21 @@ function QueuePullRequestBadges({
 }: {
 	pullRequest: QueuePullRequest;
 }) {
+	const { item, status } = pullRequest;
 	const badge = "rounded px-1.5 py-0.5 text-[10px] font-medium";
 	return (
 		<span className="flex flex-wrap gap-1">
-			{pullRequest.autoMergeAt ? (
+			{item.status === "followup" && (
+				<span
+					className={cn(
+						badge,
+						"bg-blue-500/15 text-blue-600 dark:text-blue-400",
+					)}
+				>
+					<Trans>waiting on the agent</Trans>
+				</span>
+			)}
+			{status?.autoMergeAt ? (
 				<span
 					className={cn(
 						badge,
@@ -154,7 +165,7 @@ function QueuePullRequestBadges({
 				>
 					<Trans>/prmerge on it</Trans>
 				</span>
-			) : pullRequest.nudgedAt ? (
+			) : status?.nudgedAt ? (
 				<span
 					className={cn(
 						badge,
@@ -162,20 +173,20 @@ function QueuePullRequestBadges({
 					)}
 				>
 					<Trans>
-						nudged {formatRelativeTime(Date.parse(pullRequest.nudgedAt))} ago
+						nudged {formatRelativeTime(Date.parse(status.nudgedAt))} ago
 					</Trans>
 				</span>
-			) : (
+			) : status ? (
 				<span className={cn(badge, "bg-fill-hover text-muted-foreground")}>
 					<Trans>no /prmerge · Space p m</Trans>
 				</span>
-			)}
-			{pullRequest.isDraft && (
+			) : null}
+			{status?.isDraft && (
 				<span className={cn(badge, "bg-fill-hover text-muted-foreground")}>
 					<Trans>draft</Trans>
 				</span>
 			)}
-			{pullRequest.reviewDecision === "APPROVED" && (
+			{status?.reviewDecision === "APPROVED" && (
 				<span
 					className={cn(
 						badge,
@@ -185,7 +196,7 @@ function QueuePullRequestBadges({
 					<Trans>approved</Trans>
 				</span>
 			)}
-			{pullRequest.reviewDecision === "CHANGES_REQUESTED" && (
+			{status?.reviewDecision === "CHANGES_REQUESTED" && (
 				<span
 					className={cn(badge, "bg-red-500/15 text-red-600 dark:text-red-400")}
 				>
