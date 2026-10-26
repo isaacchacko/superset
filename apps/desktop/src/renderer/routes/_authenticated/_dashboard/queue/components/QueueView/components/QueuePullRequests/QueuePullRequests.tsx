@@ -89,7 +89,7 @@ export function QueuePullRequests({ pullRequests }: QueuePullRequestsProps) {
 
 	return (
 		<div className="flex min-h-0 flex-1 border-t">
-			<ol className="w-80 shrink-0 overflow-y-auto border-r py-1">
+			<ol className="w-80 shrink-0 select-text overflow-y-auto border-r py-1">
 				{list.map((pullRequest, index) => (
 					<li key={pullRequest.url}>
 						<button

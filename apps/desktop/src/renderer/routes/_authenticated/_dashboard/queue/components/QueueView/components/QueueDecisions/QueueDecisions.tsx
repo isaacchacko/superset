@@ -26,7 +26,7 @@ export function QueueDecisions({ items }: { items: QueueItem[] }) {
 	);
 
 	return (
-		<div className="min-h-0 flex-1 overflow-y-auto">
+		<div className="min-h-0 flex-1 select-text overflow-y-auto">
 			<div className="mx-auto flex w-full max-w-3xl flex-col px-8 pt-1 pb-12">
 				<p className="text-muted-foreground text-sm">
 					<Trans>
