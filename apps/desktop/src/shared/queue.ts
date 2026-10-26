@@ -3,13 +3,13 @@ import { z } from "zod";
 /**
  * Isaac's Queue: decisions agents raise with `effort ask`, one JSON file per item in
  * ~/.efforts/queue. An item is `open` while it waits on Isaac, `followup` while it waits
- * on the agent, and `answered` once Isaac decided. Contract: ~/Programs/effort/CONTRACT.md.
+ * on the agent, `answered` once Isaac decided, and `withdrawn` when the agent decided itself. Contract: ~/Programs/effort/CONTRACT.md.
  */
 export const QUEUE_ITEM_ID_PATTERN = /^q-[0-9a-f]+-[0-9a-f]+$/;
 
 const queueEntrySchema = z.object({
 	from: z.enum(["agent", "isaac"]),
-	kind: z.enum(["reply", "decision", "followup"]),
+	kind: z.enum(["reply", "decision", "followup", "withdrawn"]),
 	text: z.string(),
 	at: z.string(),
 });
@@ -17,7 +17,7 @@ const queueEntrySchema = z.object({
 const queueItemSchema = z.object({
 	id: z.string().regex(QUEUE_ITEM_ID_PATTERN),
 	raisedAt: z.string(),
-	status: z.enum(["open", "followup", "answered"]),
+	status: z.enum(["open", "followup", "answered", "withdrawn"]),
 	asker: z.object({
 		device: z.string(),
 		workspace: z.string(),
@@ -54,16 +54,34 @@ export function sortQueueItems(items: QueueItem[]): QueueItem[] {
 export interface QueueSections {
 	waitingOnIsaac: QueueItem[];
 	waitingOnAgent: QueueItem[];
-	answered: QueueItem[];
+	/** Answered or withdrawn. */
+	settled: QueueItem[];
 }
 
-export function partitionQueue(items: QueueItem[]): QueueSections {
+/**
+ * `pinned` are ids this view showed as waiting on Isaac: they keep their place
+ * there after someone else settles them, so nothing moves while he reads.
+ */
+export function partitionQueue(
+	items: QueueItem[],
+	pinned: ReadonlySet<string> = new Set(),
+): QueueSections {
 	const sorted = sortQueueItems(items);
+	const isWaiting = (item: QueueItem) =>
+		item.status === "open" || pinned.has(item.id);
 	return {
-		waitingOnIsaac: sorted.filter((item) => item.status === "open"),
-		waitingOnAgent: sorted.filter((item) => item.status === "followup"),
+		waitingOnIsaac: sorted.filter(isWaiting),
+		waitingOnAgent: sorted.filter(
+			(item) => item.status === "followup" && !isWaiting(item),
+		),
 		// Most recently raised first: the oldest answers matter least.
-		answered: sorted.filter((item) => item.status === "answered").reverse(),
+		settled: sorted
+			.filter(
+				(item) =>
+					(item.status === "answered" || item.status === "withdrawn") &&
+					!isWaiting(item),
+			)
+			.reverse(),
 	};
 }
 
