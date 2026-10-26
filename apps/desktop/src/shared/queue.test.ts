@@ -41,9 +41,18 @@ describe("partitionQueue", () => {
 			"q-1a2-cc",
 		]);
 		expect(sections.waitingOnAgent.map((i) => i.id)).toEqual(["q-1a1-bb"]);
-		expect(sections.answered.map((i) => i.id)).toEqual([
-			"q-1a3-dd",
-			"q-19f-ee",
+		expect(sections.settled.map((i) => i.id)).toEqual(["q-1a3-dd", "q-19f-ee"]);
+	});
+
+	it("keeps an item it showed as waiting in place after it's settled", () => {
+		const sections = partitionQueue(
+			[item("q-1a0-aa", "withdrawn"), item("q-1a2-cc", "open")],
+			new Set(["q-1a0-aa"]),
+		);
+		expect(sections.waitingOnIsaac.map((i) => i.id)).toEqual([
+			"q-1a0-aa",
+			"q-1a2-cc",
 		]);
+		expect(sections.settled).toEqual([]);
 	});
 });

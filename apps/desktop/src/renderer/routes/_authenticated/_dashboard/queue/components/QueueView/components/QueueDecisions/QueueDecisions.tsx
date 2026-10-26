@@ -1,15 +1,29 @@
 import { Trans } from "@lingui/react/macro";
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { LuChevronRight } from "react-icons/lu";
 import { partitionQueue, type QueueItem } from "shared/queue";
 import { QueueItemCard } from "../QueueItemCard";
 
-const ANSWERED_SHOWN = 20;
+const SETTLED_SHOWN = 20;
 
 /** Decisions agents raised with `effort ask`: the ones waiting on Isaac first, oldest first. */
 export function QueueDecisions({ items }: { items: QueueItem[] }) {
 	const [showAnswered, setShowAnswered] = useState(false);
-	const { waitingOnIsaac, waitingOnAgent, answered } = partitionQueue(items);
+	// Every item shown as waiting on Isaac keeps its place until he leaves the
+	// page, even once he or its agent settles it: nothing moves while he reads.
+	const pinned = useRef(new Set<string>());
+	for (const item of items) {
+		if (item.status === "open") pinned.current.add(item.id);
+	}
+	const { waitingOnIsaac, waitingOnAgent, settled } = partitionQueue(
+		items,
+		pinned.current,
+	);
+	const openPositions = new Map(
+		waitingOnIsaac
+			.filter((item) => item.status === "open")
+			.map((item, index) => [item.id, index + 1]),
+	);
 
 	return (
 		<div className="min-h-0 flex-1 overflow-y-auto">
@@ -22,8 +36,12 @@ export function QueueDecisions({ items }: { items: QueueItem[] }) {
 				</p>
 
 				<div className="mt-4 flex flex-col gap-3">
-					{waitingOnIsaac.map((item, index) => (
-						<QueueItemCard key={item.id} item={item} position={index + 1} />
+					{waitingOnIsaac.map((item) => (
+						<QueueItemCard
+							key={item.id}
+							item={item}
+							position={openPositions.get(item.id)}
+						/>
 					))}
 					{waitingOnIsaac.length === 0 && (
 						<div className="rounded-lg border border-dashed px-4 py-8 text-center text-muted-foreground text-sm">
@@ -45,7 +63,7 @@ export function QueueDecisions({ items }: { items: QueueItem[] }) {
 					</section>
 				)}
 
-				{answered.length > 0 && (
+				{settled.length > 0 && (
 					<section className="mt-8">
 						<button
 							type="button"
@@ -55,11 +73,11 @@ export function QueueDecisions({ items }: { items: QueueItem[] }) {
 							<LuChevronRight
 								className={`size-3.5 transition-transform ${showAnswered ? "rotate-90" : ""}`}
 							/>
-							<Trans>Answered ({answered.length})</Trans>
+							<Trans>Settled ({settled.length})</Trans>
 						</button>
 						{showAnswered && (
 							<div className="flex flex-col gap-2">
-								{answered.slice(0, ANSWERED_SHOWN).map((item) => (
+								{settled.slice(0, SETTLED_SHOWN).map((item) => (
 									<QueueItemCard key={item.id} item={item} />
 								))}
 							</div>
