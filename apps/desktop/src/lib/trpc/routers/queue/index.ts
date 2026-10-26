@@ -4,8 +4,9 @@ import {
 	parseQueueItem,
 	QUEUE_ITEM_ID_PATTERN,
 	type QueueItem,
-	type QueuePullRequest,
+	type QueuePullRequestStatus,
 	sortQueueItems,
+	surfacedPullRequestItems,
 } from "shared/queue";
 import { z } from "zod";
 import { publicProcedure, router } from "../..";
@@ -100,33 +101,36 @@ async function settle(item: QueueItem, state: "MERGED" | "CLOSED") {
 	);
 }
 
-/** PRs agents surfaced to Isaac with `effort ask --pr`, oldest first. */
-async function readPullRequests(): Promise<QueuePullRequest[]> {
-	const items = (await readQueue()).filter(
-		(item): item is QueuePullRequest["item"] =>
-			!!item.pr && (item.status === "open" || item.status === "followup"),
+/**
+ * What GitHub says about the given surfaced PRs, by item id. The list itself
+ * comes from the Queue, so a newly surfaced PR shows before GitHub answers.
+ */
+async function readPullRequestStatuses(
+	ids: string[],
+): Promise<Record<string, QueuePullRequestStatus>> {
+	const wanted = new Set(ids);
+	const items = surfacedPullRequestItems(await readQueue()).filter((item) =>
+		wanted.has(item.id),
 	);
 	const [github, nudges] = await Promise.all([
 		readGithubPullRequests(items.map((item) => item.pr)),
 		readNudges(),
 	]);
-	const pullRequests: QueuePullRequest[] = [];
+	const statuses: Record<string, QueuePullRequestStatus> = {};
 	for (const [index, item] of items.entries()) {
 		const pr = github[index];
-		if (pr && pr.state !== "OPEN") {
-			await settle(item, pr.state);
-			continue;
-		}
-		pullRequests.push({
-			item,
-			title: pr?.title ?? item.question,
-			isDraft: pr?.isDraft ?? false,
-			reviewDecision: pr?.reviewDecision ?? null,
-			autoMergeAt: pr?.autoMergeRequest?.enabledAt ?? null,
+		if (!pr) continue;
+		if (pr.state !== "OPEN") await settle(item, pr.state);
+		statuses[item.id] = {
+			title: pr.title,
+			isDraft: pr.isDraft,
+			state: pr.state,
+			reviewDecision: pr.reviewDecision,
+			autoMergeAt: pr.autoMergeRequest?.enabledAt ?? null,
 			nudgedAt: nudges[item.pr.url] ?? null,
-		});
+		};
 	}
-	return pullRequests;
+	return statuses;
 }
 
 export const createQueueRouter = () => {
@@ -153,7 +157,11 @@ export const createQueueRouter = () => {
 					input.text,
 				]);
 			}),
-		pullRequests: publicProcedure.query(() => readPullRequests()),
+		pullRequestStatuses: publicProcedure
+			.input(
+				z.object({ ids: z.array(z.string().regex(QUEUE_ITEM_ID_PATTERN)) }),
+			)
+			.query(({ input }) => readPullRequestStatuses(input.ids)),
 		/** Space p m: the agent on the PR's branch is told to /prmerge it. */
 		prmerge: publicProcedure
 			.input(z.object({ url: z.string().url(), branch: z.string().min(1) }))
