@@ -43,7 +43,7 @@ export function QueuePullRequestDetail({
 			: null;
 
 	return (
-		<div className="flex min-h-0 min-w-0 flex-1 flex-col">
+		<div className="flex min-h-0 min-w-0 flex-1 select-text flex-col">
 			<div className="flex h-10 shrink-0 items-center border-b px-3">
 				<PullRequestDetailTabs
 					activeTab={activeTab}
