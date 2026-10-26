@@ -1,4 +1,4 @@
-import { readdir, readFile } from "node:fs/promises";
+import { readdir, readFile, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import {
 	parseQueueItem,
@@ -6,7 +6,6 @@ import {
 	type QueueItem,
 	type QueuePullRequest,
 	sortQueueItems,
-	sortQueuePullRequests,
 } from "shared/queue";
 import { z } from "zod";
 import { publicProcedure, router } from "../..";
@@ -38,27 +37,11 @@ export async function readQueue(
 	return sortQueueItems(items.filter((item) => item !== null));
 }
 
-const OPEN_PULL_REQUESTS_QUERY = `query {
-  search(query: "is:pr is:open author:@me archived:false", type: ISSUE, first: 100) {
-    nodes {
-      ... on PullRequest {
-        number title url createdAt isDraft headRefName reviewDecision
-        repository { nameWithOwner }
-        autoMergeRequest { enabledAt }
-      }
-    }
-  }
-}`;
-
 interface GraphqlPullRequest {
-	number: number;
 	title: string;
-	url: string;
-	createdAt: string;
 	isDraft: boolean;
-	headRefName: string;
+	state: "OPEN" | "MERGED" | "CLOSED";
 	reviewDecision: string | null;
-	repository: { nameWithOwner: string };
 	autoMergeRequest: { enabledAt: string } | null;
 }
 
@@ -72,35 +55,78 @@ async function readNudges(): Promise<Record<string, string>> {
 	}
 }
 
-/** Isaac's open PRs (his agents open them as him), oldest first. */
+/** What GitHub says about each PR, in one query: aliased `p<i>` per PR. */
+async function readGithubPullRequests(
+	prs: { repo: string; number: number }[],
+): Promise<(GraphqlPullRequest | null)[]> {
+	if (prs.length === 0) return [];
+	const fields =
+		"title isDraft state reviewDecision autoMergeRequest { enabledAt }";
+	const query = `query { ${prs
+		.map(({ repo, number }, index) => {
+			const [owner, name] = repo.split("/");
+			return `p${index}: repository(owner: ${JSON.stringify(owner)}, name: ${JSON.stringify(name)}) { pullRequest(number: ${number}) { ${fields} } }`;
+		})
+		.join(" ")} }`;
+	const stdout = await runTool("gh", [
+		"api",
+		"graphql",
+		"-f",
+		`query=${query}`,
+	]);
+	const data = JSON.parse(stdout).data ?? {};
+	return prs.map((_, index) => data[`p${index}`]?.pullRequest ?? null);
+}
+
+/** A merged or closed PR leaves the Queue: its item is settled, by GitHub. */
+async function settle(item: QueueItem, state: "MERGED" | "CLOSED") {
+	const kind = state === "MERGED" ? "merged" : "closed";
+	const settled: QueueItem = {
+		...item,
+		status: "answered",
+		thread: [
+			...item.thread,
+			{
+				from: "github",
+				kind,
+				text: `The PR was ${kind}.`,
+				at: new Date().toISOString(),
+			},
+		],
+	};
+	await writeFile(
+		join(getEffortsHome(), "queue", `${item.id}.json`),
+		JSON.stringify(settled, null, 2),
+	);
+}
+
+/** PRs agents surfaced to Isaac with `effort ask --pr`, oldest first. */
 async function readPullRequests(): Promise<QueuePullRequest[]> {
-	const [stdout, nudges] = await Promise.all([
-		runTool("gh", [
-			"api",
-			"graphql",
-			"-f",
-			`query=${OPEN_PULL_REQUESTS_QUERY}`,
-		]),
+	const items = (await readQueue()).filter(
+		(item): item is QueuePullRequest["item"] =>
+			!!item.pr && (item.status === "open" || item.status === "followup"),
+	);
+	const [github, nudges] = await Promise.all([
+		readGithubPullRequests(items.map((item) => item.pr)),
 		readNudges(),
 	]);
-	const nodes: GraphqlPullRequest[] =
-		JSON.parse(stdout).data?.search?.nodes ?? [];
-	return sortQueuePullRequests(
-		nodes
-			.filter((node) => node.number !== undefined)
-			.map((node) => ({
-				number: node.number,
-				title: node.title,
-				url: node.url,
-				createdAt: node.createdAt,
-				isDraft: node.isDraft,
-				branch: node.headRefName,
-				repo: node.repository.nameWithOwner,
-				reviewDecision: node.reviewDecision,
-				autoMergeAt: node.autoMergeRequest?.enabledAt ?? null,
-				nudgedAt: nudges[node.url] ?? null,
-			})),
-	);
+	const pullRequests: QueuePullRequest[] = [];
+	for (const [index, item] of items.entries()) {
+		const pr = github[index];
+		if (pr && pr.state !== "OPEN") {
+			await settle(item, pr.state);
+			continue;
+		}
+		pullRequests.push({
+			item,
+			title: pr?.title ?? item.question,
+			isDraft: pr?.isDraft ?? false,
+			reviewDecision: pr?.reviewDecision ?? null,
+			autoMergeAt: pr?.autoMergeRequest?.enabledAt ?? null,
+			nudgedAt: nudges[item.pr.url] ?? null,
+		});
+	}
+	return pullRequests;
 }
 
 export const createQueueRouter = () => {

@@ -8,8 +8,15 @@ import { z } from "zod";
 export const QUEUE_ITEM_ID_PATTERN = /^q-[0-9a-f]+-[0-9a-f]+$/;
 
 const queueEntrySchema = z.object({
-	from: z.enum(["agent", "isaac"]),
-	kind: z.enum(["reply", "decision", "followup", "withdrawn"]),
+	from: z.enum(["agent", "isaac", "github"]),
+	kind: z.enum([
+		"reply",
+		"decision",
+		"followup",
+		"withdrawn",
+		"merged",
+		"closed",
+	]),
 	text: z.string(),
 	at: z.string(),
 });
@@ -28,6 +35,15 @@ const queueItemSchema = z.object({
 	}),
 	question: z.string(),
 	details: z.string().default(""),
+	/** Set when an agent surfaced a PR to Isaac (`effort ask --pr`): the Queue's PRs tab. */
+	pr: z
+		.object({
+			url: z.string(),
+			repo: z.string(),
+			number: z.number(),
+			branch: z.string(),
+		})
+		.optional(),
 	thread: z.array(queueEntrySchema).default([]),
 });
 
@@ -66,7 +82,7 @@ export function partitionQueue(
 	items: QueueItem[],
 	pinned: ReadonlySet<string> = new Set(),
 ): QueueSections {
-	const sorted = sortQueueItems(items);
+	const sorted = sortQueueItems(items.filter((item) => !item.pr));
 	const isWaiting = (item: QueueItem) =>
 		item.status === "open" || pinned.has(item.id);
 	return {
@@ -85,29 +101,14 @@ export function partitionQueue(
 	};
 }
 
-/** An open PR Isaac's agents made, for the Queue's PRs tab. */
+/** A PR an agent surfaced to Isaac, with what GitHub says about it now. */
 export interface QueuePullRequest {
-	number: number;
+	item: QueueItem & { pr: NonNullable<QueueItem["pr"]> };
 	title: string;
-	url: string;
-	createdAt: string;
 	isDraft: boolean;
-	branch: string;
-	/** owner/name */
-	repo: string;
 	reviewDecision: string | null;
 	/** GitHub auto-merge is armed: /prmerge has it. */
 	autoMergeAt: string | null;
 	/** When Space p m last told its agent to /prmerge it. */
 	nudgedAt: string | null;
-}
-
-/** First in, first out, like decisions: the PR that has waited longest comes first. */
-export function sortQueuePullRequests(
-	pullRequests: QueuePullRequest[],
-): QueuePullRequest[] {
-	return [...pullRequests].sort(
-		(a, b) =>
-			a.createdAt.localeCompare(b.createdAt) || a.url.localeCompare(b.url),
-	);
 }

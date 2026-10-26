@@ -50,8 +50,9 @@ if running; then
     exit 0
   fi
   osascript -e 'tell application id "com.superset.desktop" to quit'
-  for _ in $(seq 1 60); do running || break; sleep 1; done
-  if running; then echo "Vector didn't quit within 60s; not installed" >&2; exit 1; fi
+  # With agents running, Vector asks "Are you sure you want to quit?"; wait for the answer.
+  for _ in $(seq 1 600); do running || break; sleep 1; done
+  if running; then echo "Vector is still running (quit cancelled?); not installed" >&2; exit 1; fi
 fi
 mkdir -p "$HOME/Applications"
 rm -rf "$OUT" "$LEGACY"
