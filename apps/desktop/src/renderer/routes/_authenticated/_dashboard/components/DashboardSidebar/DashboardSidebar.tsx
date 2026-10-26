@@ -52,6 +52,7 @@ import { DashboardSidebarPinnedSection } from "./components/DashboardSidebarPinn
 import { DashboardSidebarProjectSection } from "./components/DashboardSidebarProjectSection";
 import { DashboardSidebarSectionRenameProvider } from "./components/DashboardSidebarSectionRenameContext";
 import { DashboardSidebarSessionsSection } from "./components/DashboardSidebarSessionsSection";
+import { DashboardSidebarVimBindings } from "./components/DashboardSidebarVimBindings";
 import { DashboardSidebarWorkspacesHeader } from "./components/DashboardSidebarWorkspacesHeader";
 import { useGettingStartedCard } from "./components/GettingStartedCard";
 import { useV2SetupScriptCard } from "./components/V2SetupScriptCard";
@@ -396,6 +397,27 @@ export const DashboardSidebar = memo(function DashboardSidebar({
 			? (state.byOrganization[organizationId] ?? EMPTY_CLOUD_SIDEBAR).entries
 			: EMPTY_CLOUD_SIDEBAR.entries,
 	);
+	// Effort children report to their sentinel, so Space Space skips them.
+	const vimWorkspaceOrder = useMemo(() => {
+		const effortChildIds = new Set(
+			efforts.flatMap((effort) =>
+				effort.children.map((child) => child.workspace.id),
+			),
+		);
+		return [
+			...efforts.flatMap((effort) =>
+				effort.sentinel ? [effort.sentinel.id] : [],
+			),
+			...pinnedWorkspaces.map((workspace) => workspace.id),
+			...sessionWorkspaces.map((workspace) => workspace.id),
+			...sortedGroups.flatMap((project) =>
+				getProjectChildrenWorkspaces(project.children).map(
+					(workspace) => workspace.id,
+				),
+			),
+		].filter((id) => !effortChildIds.has(id));
+	}, [efforts, pinnedWorkspaces, sessionWorkspaces, sortedGroups]);
+
 	const switcherWorkspaces = useMemo<ActiveWorkspaceSwitcherOption[]>(() => {
 		const byId = new Map<string, ActiveWorkspaceSwitcherOption>();
 		for (const workspace of pinnedWorkspaces) {
@@ -516,6 +538,10 @@ export const DashboardSidebar = memo(function DashboardSidebar({
 					>
 						<DashboardSidebarActiveWorkspaceSwitcher
 							workspaces={switcherWorkspaces}
+							activeWorkspaceId={activeV2WorkspaceId}
+						/>
+						<DashboardSidebarVimBindings
+							workspaceOrder={vimWorkspaceOrder}
 							activeWorkspaceId={activeV2WorkspaceId}
 						/>
 						{/* Port data comes from the single DashboardSidebarPortsProvider in the
