@@ -84,6 +84,15 @@ export const HOTKEYS_REGISTRY = {
 			message: "Search and open files in the current workspace",
 		}),
 	},
+	// Vector: Cmd+K searches chats; Clear Terminal moved to Cmd+Option+K.
+	SEARCH_CHATS: {
+		key: { mac: L("meta+k"), windows: null, linux: null },
+		label: msg({ message: "Search Chats" }),
+		category: "Navigation",
+		description: msg({
+			message: "Search your recent agent chats and open one",
+		}),
+	},
 
 	// Workspace switching
 	JUMP_TO_WORKSPACE_1: {
@@ -593,7 +602,7 @@ export const HOTKEYS_REGISTRY = {
 	},
 	CLEAR_TERMINAL: {
 		key: {
-			mac: L("meta+k"),
+			mac: L("meta+alt+k"),
 			windows: L("ctrl+shift+k"),
 			linux: L("ctrl+shift+k"),
 		},
