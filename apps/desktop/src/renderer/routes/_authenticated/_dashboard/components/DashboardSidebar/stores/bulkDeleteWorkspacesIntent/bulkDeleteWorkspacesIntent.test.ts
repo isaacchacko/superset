@@ -23,9 +23,22 @@ describe("useBulkDeleteWorkspacesIntent", () => {
 		useBulkDeleteWorkspacesIntent.setState({
 			requestId: 0,
 			targets: [],
+			effort: null,
 			phase: "confirm",
 			failures: [],
 		});
+	});
+
+	test("an effort teardown keeps its effort until closed", () => {
+		state().request([workspace("a"), workspace("sentinel")], {
+			slug: "faster-drafts",
+			name: "Faster drafts",
+		});
+		expect(state().effort?.slug).toBe("faster-drafts");
+		state().close(state().requestId);
+		expect(state().effort).toBeNull();
+		state().request([workspace("b")]);
+		expect(state().effort).toBeNull();
 	});
 
 	test("request latches targets under a fresh request id awaiting confirmation", () => {

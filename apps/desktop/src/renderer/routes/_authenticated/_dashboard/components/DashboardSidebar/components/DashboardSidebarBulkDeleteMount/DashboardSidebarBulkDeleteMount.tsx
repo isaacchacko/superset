@@ -15,6 +15,7 @@ import { DashboardSidebarBulkDeleteDialog } from "../DashboardSidebarBulkDeleteD
 export function DashboardSidebarBulkDeleteMount() {
 	const requestId = useBulkDeleteWorkspacesIntent((s) => s.requestId);
 	const targets = useBulkDeleteWorkspacesIntent((s) => s.targets);
+	const effort = useBulkDeleteWorkspacesIntent((s) => s.effort);
 	const { removeSelectedWorkspaces } = useDashboardSidebarSelection();
 
 	if (targets.length === 0) return null;
@@ -23,6 +24,7 @@ export function DashboardSidebarBulkDeleteMount() {
 			key={requestId}
 			requestId={requestId}
 			workspaces={targets}
+			effort={effort}
 			onDeleted={removeSelectedWorkspaces}
 		/>
 	);
