@@ -18,6 +18,10 @@ Nothing.
 
 ## Done
 
+- The Queue's PRs tab holds only PRs agents surfaced (`effort ask --pr`), with the agent's note and answer box above the PR, shown within seconds and settled when GitHub reports them merged or closed; Queue text is selectable; items keep their place while read; withdrawn questions are kept; `⌘ ↵` sits inside Decide (2026-10-26).
+- Builds run on GitHub's free runners: `vector/release.sh`, then `vector/install.sh --restart` (2026-10-26).
+- The app shows as Vector; efforts are collapsed by default; `Space n` opens a terminal in ~; leader sequences (`Space c u`, `c n`, `p m`) (2026-10-26).
+- Every agent working on its own is kept going until it queues a question meant for Isaac (2026-10-26).
 - Vim-like bindings, first slice: `i` focuses the current agent, `Esc` leaves it (`Shift+Esc` still sends Esc to the agent, since Claude Code interrupts on Esc), Space is the leader: `Space q` Queue, `Space a` the agent (on the Queue page, the first item's), `Space Space` the next agent that finished its turn and is unseen, skipping effort children (2026-10-26).
 - Queue alerts open the Queue page: `superset notifications show --page queue` (2026-10-26).
 - The app installs as `~/Applications/Vector.app` (was `Superset Efforts.app`); takes effect on the next build (2026-10-26).
