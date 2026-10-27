@@ -1,6 +1,7 @@
-import { writeFile } from "node:fs/promises";
+import { mkdir, writeFile } from "node:fs/promises";
 import { homedir } from "node:os";
 import { join } from "node:path";
+import { z } from "zod";
 import { publicProcedure, router } from "../..";
 import { runTool, SUPERSET_BIN } from "./run-tool";
 
@@ -56,6 +57,11 @@ async function homeWorkspace(): Promise<CliWorkspace> {
 	return workspace;
 }
 
+/** Quoted for the user's shell, which the terminal types the command into. */
+function shellQuote(text: string): string {
+	return `'${text.replaceAll("'", "'\\''")}'`;
+}
+
 export const createVectorRouter = () => {
 	return router({
 		/** Space n: a new shell in ~, in its own tab of the Terminal workspace. */
@@ -72,5 +78,51 @@ export const createVectorRouter = () => {
 			]);
 			return { workspaceId: workspace.id, terminalId };
 		}),
+		/**
+		 * Cmd+K on a chat no agent is running: `claude --resume` it in its own
+		 * folder, in the workspace that holds that folder, else in a new session
+		 * workspace named for the chat.
+		 */
+		resumeChat: publicProcedure
+			.input(
+				z.object({
+					sessionId: z.string().regex(/^[\w-]+$/),
+					configDir: z.string().nullable(),
+					cwd: z.string().min(1),
+					title: z.string(),
+					workspaceId: z.string().nullable(),
+				}),
+			)
+			.mutation(async ({ input }) => {
+				const workspaceId =
+					input.workspaceId ??
+					(
+						await superset<{ workspace: { id: string } }>([
+							"workspaces",
+							"create",
+							"--local",
+							"--session",
+							"--name",
+							input.title.slice(0, 80) || "Resumed chat",
+						])
+					).workspace.id;
+				// Claude finds a session by its folder; one whose worktree is gone gets the path back, empty.
+				await mkdir(input.cwd, { recursive: true });
+				const account = input.configDir
+					? `CLAUDE_CONFIG_DIR=${shellQuote(input.configDir)} `
+					: "";
+				const { terminalId } = await superset<{ terminalId: string }>([
+					"terminals",
+					"create",
+					"--workspace",
+					workspaceId,
+					"--local",
+					"--cwd",
+					input.cwd,
+					"--command",
+					`${account}claude --resume ${input.sessionId}`,
+				]);
+				return { workspaceId, terminalId };
+			}),
 	});
 };
