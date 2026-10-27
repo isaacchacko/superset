@@ -157,12 +157,12 @@ export function chatFromRecords(
 			.filter((record) => record.type === "user" && !record.isSidechain)
 			.map((record) => promptText(record.message?.content))
 			.find((prompt) => prompt !== null) ?? null;
+	const newestFirst = [...head, ...tail].reverse();
 	const newest = <K extends keyof TranscriptRecord>(key: K) =>
-		tail.findLast((record) => record[key])?.[key] ??
-		head.findLast((record) => record[key])?.[key];
+		newestFirst.find((record) => record[key])?.[key];
 	const lastPrompt = newest("lastPrompt");
 	return {
-		cwd: tail.findLast((record) => record.cwd)?.cwd ?? start.cwd,
+		cwd: newest("cwd") ?? start.cwd,
 		branch: newest("gitBranch") ?? null,
 		title:
 			newest("customTitle") ??
