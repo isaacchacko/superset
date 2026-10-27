@@ -4,16 +4,19 @@
 #   vector/install.sh                  # the newest build of release/<installed stock tag>
 #   vector/install.sh desktop-v1.41.0  # of a given release
 #   vector/install.sh --restart        # also quit and reopen Vector if it is running
+#   vector/install.sh --wait           # first wait for the build of the branch's newest commit
 #
 # Downloads the build job's artifact (a zip of Vector.app) and puts it at
 # ~/Applications/Vector.app. Nothing is compiled here.
 set -euo pipefail
 
 RESTART=false
+WAIT=false
 TAG=""
 for arg in "$@"; do
   case "$arg" in
     --restart) RESTART=true ;;
+    --wait) WAIT=true ;;
     *) TAG="$arg" ;;
   esac
 done
@@ -24,6 +27,22 @@ REPO="isaacchacko/vector"
 OUT="$HOME/Applications/Vector.app"
 # The name Vector builds had before 2026-10-26; replaced on install.
 LEGACY="$HOME/Applications/Superset Efforts.app"
+
+if $WAIT; then
+  # The newest successful run may be an older commit's while this one's builds.
+  HEAD="$(git ls-remote "https://github.com/$REPO.git" "refs/heads/$BRANCH" | cut -f1)"
+  for _ in $(seq 1 90); do
+    WAIT_ID="$(gh run list -R "$REPO" --workflow "Vector CI" --branch "$BRANCH" --limit 10 \
+      --json databaseId,headSha --jq ".[] | select(.headSha == \"$HEAD\") | .databaseId" | head -1)"
+    [ -n "$WAIT_ID" ] && break
+    sleep 10
+  done
+  if [ -z "${WAIT_ID:-}" ]; then echo "no Vector CI run of ${HEAD:0:10} on $BRANCH" >&2; exit 1; fi
+  if ! gh run watch -R "$REPO" "$WAIT_ID" --exit-status >/dev/null; then
+    echo "Vector CI run $WAIT_ID of ${HEAD:0:10} failed: gh run view -R $REPO $WAIT_ID --log-failed" >&2
+    exit 1
+  fi
+fi
 
 RUN="$(gh run list -R "$REPO" --workflow "Vector CI" --branch "$BRANCH" --status success \
   --limit 1 --json databaseId,headSha --jq '.[0] | "\(.databaseId) \(.headSha)"')"
