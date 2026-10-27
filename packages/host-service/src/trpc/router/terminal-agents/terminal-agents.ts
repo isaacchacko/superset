@@ -31,6 +31,7 @@ import {
 	seedEndedTerminalAgentBinding,
 	unclaimResumeCandidateBinding,
 } from "../../../terminal-agents/persistence";
+import { recentChatsWithPlaces } from "../../../terminal-agents/recent-chats";
 import type { HostServiceContext } from "../../../types";
 import { protectedProcedure, router } from "../../index";
 import { type AgentRunResult, runAgentInWorkspace } from "../agents/agents";
@@ -376,6 +377,11 @@ const GET_OR_CREATE_TIMEOUT_MS = 10_000;
 const MAX_AGENT_TRANSCRIPT_CHARS = 400_000;
 
 export const terminalAgentsRouter = router({
+	/** Vector's Cmd+K: Claude chats written since `since` (epoch ms), newest first. */
+	recentChats: protectedProcedure
+		.input(z.object({ since: z.number() }))
+		.query(({ ctx, input }) => recentChatsWithPlaces(ctx.db, input.since)),
+
 	list: protectedProcedure.query(({ ctx }) => {
 		return ctx.terminalAgentStore.list();
 	}),
