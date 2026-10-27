@@ -34,7 +34,8 @@ function isVisible(element: Element): boolean {
  * i focuses the current agent and Escape leaves it (Shift+Escape still reaches
  * the agent). Space is the leader: q Queue, a agent, n new terminal in ~,
  * Space next finished agent; on the Queue, c u / c n copy the PR's URL /
- * number, p m nudges its agent to /prmerge it, and j / k move through the list.
+ * number, p m nudges its agent to /prmerge it, j / k move through the list,
+ * and Shift+H / Shift+L switch its tabs.
  */
 export function DashboardSidebarVimBindings({
 	workspaceOrder,

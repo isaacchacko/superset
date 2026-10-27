@@ -10,6 +10,9 @@ describe("vim keys", () => {
 	it("maps normal-mode keys", () => {
 		expect(normalModeAction("i")).toBe("focus-agent");
 		expect(normalModeAction("j")).toBe("next-item");
+		expect(normalModeAction("H")).toBe("prev-tab");
+		expect(normalModeAction("L")).toBe("next-tab");
+		expect(normalModeAction("h")).toBeNull();
 		expect(normalModeAction("q")).toBeNull();
 	});
 
