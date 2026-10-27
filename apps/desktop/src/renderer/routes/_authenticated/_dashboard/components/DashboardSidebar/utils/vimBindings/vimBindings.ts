@@ -13,7 +13,9 @@ export type VimPageAction =
 	| "copy-pr-number"
 	| "prmerge-pr"
 	| "next-item"
-	| "prev-item";
+	| "prev-item"
+	| "next-tab"
+	| "prev-tab";
 
 export type VimAction =
 	| "focus-agent"
@@ -31,6 +33,8 @@ const PAGE_ACTIONS: ReadonlySet<VimAction> = new Set<VimPageAction>([
 	"prmerge-pr",
 	"next-item",
 	"prev-item",
+	"next-tab",
+	"prev-tab",
 ]);
 
 export function isVimPageAction(action: VimAction): action is VimPageAction {
@@ -42,6 +46,8 @@ const NORMAL_BINDINGS: Record<string, VimAction> = {
 	i: "focus-agent",
 	j: "next-item",
 	k: "prev-item",
+	H: "prev-tab",
+	L: "next-tab",
 };
 
 /** Key sequences after the Space leader. */

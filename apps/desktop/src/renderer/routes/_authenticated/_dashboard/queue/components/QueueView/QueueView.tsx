@@ -1,9 +1,13 @@
 import { Trans } from "@lingui/react/macro";
 import { cn } from "@superset/ui/utils";
+import { useEffect } from "react";
 import { electronTrpc } from "renderer/lib/electron-trpc";
 import { PageHeader } from "renderer/routes/_authenticated/_dashboard/components/PageHeader";
-import { NOTIFICATION_EVENTS } from "shared/constants";
 import { type QueuePullRequest, surfacedPullRequestItems } from "shared/queue";
+import {
+	VIM_PAGE_ACTION_EVENT,
+	type VimPageAction,
+} from "renderer/routes/_authenticated/_dashboard/components/DashboardSidebar/utils/vimBindings";
 import type { QueueTab } from "../../page";
 import { QueueDecisions } from "./components/QueueDecisions";
 import { QueuePullRequests } from "./components/QueuePullRequests";
@@ -43,16 +47,19 @@ export function QueueView({ tab, onTabChange }: QueueViewProps) {
 		(item) => item.status === "open" && !item.pr,
 	).length;
 
-	// Cmd+H / Cmd+L, caught in the main process before the menu's Hide.
-	electronTrpc.notifications.subscribe.useSubscription(undefined, {
-		onData: (event) => {
-			if (event.type !== NOTIFICATION_EVENTS.QUEUE_TAB || !event.data) return;
+	// Shift+H / Shift+L, in vim normal mode.
+	useEffect(() => {
+		const onAction = (event: Event) => {
+			const action = (event as CustomEvent<VimPageAction>).detail;
+			if (action !== "prev-tab" && action !== "next-tab") return;
 			const index = TABS.indexOf(tab);
-			const next = event.data.direction === "left" ? index - 1 : index + 1;
+			const next = action === "prev-tab" ? index - 1 : index + 1;
 			const target = TABS[Math.min(Math.max(next, 0), TABS.length - 1)];
 			if (target && target !== tab) onTabChange(target);
-		},
-	});
+		};
+		window.addEventListener(VIM_PAGE_ACTION_EVENT, onAction);
+		return () => window.removeEventListener(VIM_PAGE_ACTION_EVENT, onAction);
+	}, [tab, onTabChange]);
 
 	const tabButton = (
 		value: QueueTab,
@@ -89,7 +96,7 @@ export function QueueView({ tab, onTabChange }: QueueViewProps) {
 				{tabButton("decisions", <Trans>Decisions</Trans>, decisionCount)}
 				{tabButton("prs", <Trans>PRs</Trans>, pullRequests?.length)}
 				<span className="ml-auto text-muted-foreground text-xs">
-					<Trans>⌘H / ⌘L switch tabs</Trans>
+					<Trans>⇧H / ⇧L switch tabs</Trans>
 				</span>
 			</div>
 			{tab === "decisions" ? (
