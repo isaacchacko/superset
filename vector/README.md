@@ -32,7 +32,7 @@ Vector is built on GitHub's free macOS runners, not on Isaac's machine:
 
 ```sh
 vector/release.sh             # bring release/<tag> up to date with main's Vector commits and push it
-vector/install.sh --restart   # once Vector CI is green: download its build, install it, reopen Vector
+vector/install.sh --wait --restart   # wait for CI to build the pushed commit, install it, reopen Vector
 ```
 
 `release.sh` uses the release `/Applications/Superset.app` runs unless given a tag. It checks out `release/<tag>` in `~/Programs/vector-release` (made from the tag the first time), cherry-picks any Vector commits it lacks and pushes it. Vector CI typechecks it, then builds `Vector.app` with `vector/build-app.sh` and uploads it. `install.sh` downloads the newest green build and installs it at `~/Applications/Vector.app`; without `--restart` it stages it and prints the one command to swap it in while Vector is running.
