@@ -40,4 +40,4 @@ if [ -n "$MISSING" ]; then
   fi
 fi
 git push --quiet -u origin "$BRANCH"
-echo "pushed $BRANCH at $(git rev-parse --short HEAD); Vector CI builds it, then run vector/install.sh"
+echo "pushed $BRANCH at $(git rev-parse --short HEAD); Vector CI builds it, then run vector/install.sh --wait --restart"
