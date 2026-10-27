@@ -11,6 +11,8 @@ const HEAD_BYTES = 256 * 1024;
 /** Enough of its end for the newest title and prompt. */
 const TAIL_BYTES = 256 * 1024;
 const PROMPT_CHARS = 300;
+/** How the `effort` CLI starts a child agent; the sentinel is the chat to open. */
+const EFFORT_CHILD_PROMPT = /^You are "[^"]+", a child agent in the effort /;
 /** Files read at once. */
 const READ_CONCURRENCY = 32;
 
@@ -157,6 +159,7 @@ export function chatFromRecords(
 			.filter((record) => record.type === "user" && !record.isSidechain)
 			.map((record) => promptText(record.message?.content))
 			.find((prompt) => prompt !== null) ?? null;
+	if (firstPrompt && EFFORT_CHILD_PROMPT.test(firstPrompt)) return null;
 	const newestFirst = [...head, ...tail].reverse();
 	const newest = <K extends keyof TranscriptRecord>(key: K) =>
 		newestFirst.find((record) => record[key])?.[key];
