@@ -40,6 +40,26 @@ describe("chatFromRecords", () => {
 			chatFromRecords([{ type: "user", cwd: "/w", entrypoint: "sdk-cli" }], []),
 		).toBeNull();
 	});
+
+	it("skips an effort's children, keeping its sentinel", () => {
+		const opening = (content: string) => [
+			{ type: "user", cwd: "/w", entrypoint: "cli", message: { content } },
+		];
+		expect(
+			chatFromRecords(
+				opening(
+					'You are "alpha", a child agent in the effort "Demo" (slug demo).',
+				),
+				[],
+			),
+		).toBeNull();
+		expect(
+			chatFromRecords(
+				opening('You are the sentinel of the effort "Demo" (slug demo).'),
+				[],
+			),
+		).not.toBeNull();
+	});
 });
 
 describe("readRecentClaudeChats", () => {
