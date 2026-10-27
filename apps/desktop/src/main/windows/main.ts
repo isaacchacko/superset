@@ -529,7 +529,6 @@ export async function createPlatformWindow({
 	};
 	window.on("move", debouncedSave);
 	window.on("resize", debouncedSave);
-	});
 	window.webContents.on("zoom-changed", () => {
 		setTimeout(() => {
 			if (window.isDestroyed()) return;
