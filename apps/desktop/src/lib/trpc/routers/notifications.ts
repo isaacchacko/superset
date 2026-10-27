@@ -37,10 +37,6 @@ type NotificationEvent =
 			data?: { page: DesktopNotificationPage };
 	  }
 	| {
-			type: typeof NOTIFICATION_EVENTS.QUEUE_TAB;
-			data?: { direction: "left" | "right" };
-	  }
-	| {
 			type: typeof NOTIFICATION_EVENTS.TERMINAL_EXIT;
 			data?: TerminalExitNotification;
 	  }
@@ -170,10 +166,6 @@ export const createNotificationsRouter = (
 					emit.next({ type: NOTIFICATION_EVENTS.OPEN_PAGE, data });
 				};
 
-				const onQueueTab = (data: { direction: "left" | "right" }) => {
-					emit.next({ type: NOTIFICATION_EVENTS.QUEUE_TAB, data });
-				};
-
 				const onTerminalExit = (data: TerminalExitNotification) => {
 					emit.next({ type: NOTIFICATION_EVENTS.TERMINAL_EXIT, data });
 				};
@@ -195,7 +187,6 @@ export const createNotificationsRouter = (
 					onFocusV2NotificationSource,
 				);
 				notificationsEmitter.on(NOTIFICATION_EVENTS.OPEN_PAGE, onOpenPage);
-				notificationsEmitter.on(NOTIFICATION_EVENTS.QUEUE_TAB, onQueueTab);
 				notificationsEmitter.on(
 					NOTIFICATION_EVENTS.TERMINAL_EXIT,
 					onTerminalExit,
@@ -216,7 +207,6 @@ export const createNotificationsRouter = (
 						onFocusV2NotificationSource,
 					);
 					notificationsEmitter.off(NOTIFICATION_EVENTS.OPEN_PAGE, onOpenPage);
-					notificationsEmitter.off(NOTIFICATION_EVENTS.QUEUE_TAB, onQueueTab);
 					notificationsEmitter.off(
 						NOTIFICATION_EVENTS.TERMINAL_EXIT,
 						onTerminalExit,
