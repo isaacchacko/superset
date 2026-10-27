@@ -5,6 +5,8 @@ name: Vector CI
 on:
   push:
     branches: [main, "release/**"]
+  # Pushes have failed to start runs before; `gh workflow run "Vector CI" --ref <branch>` starts one.
+  workflow_dispatch:
 
 jobs:
   check:
