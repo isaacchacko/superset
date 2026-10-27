@@ -61,6 +61,7 @@ import {
 } from "./hooks/useBlockedDragNotice";
 import { useDashboardSidebarData } from "./hooks/useDashboardSidebarData";
 import { useDashboardSidebarShortcuts } from "./hooks/useDashboardSidebarShortcuts";
+import { useEffortTeardown } from "./hooks/useEffortTeardown";
 import { useMigrateLegacySidebarFolders } from "./hooks/useMigrateLegacySidebarFolders";
 import { useDashboardSidebarDnd } from "./hooks/useSidebarDnd";
 import { useSidebarEfforts } from "./hooks/useSidebarEfforts";
@@ -176,6 +177,7 @@ const DashboardSidebarContent = memo(function DashboardSidebarContent({
 		refreshWorkspacePullRequest,
 		toggleProjectCollapsed,
 	} = useSidebarEfforts(useDashboardSidebarData());
+	useEffortTeardown(efforts);
 	const {
 		deleteSection,
 		reorderProjects,

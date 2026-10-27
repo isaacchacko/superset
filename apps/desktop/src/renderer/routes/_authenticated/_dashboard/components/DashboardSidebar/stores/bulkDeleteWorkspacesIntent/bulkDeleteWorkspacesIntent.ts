@@ -7,6 +7,12 @@ export interface BulkWorkspaceDeleteFailure {
 	error: DestroyWorkspaceError;
 }
 
+/** The effort a bulk delete tears down: its sentinel and every child. */
+export interface BulkDeleteEffort {
+	slug: string;
+	name: string;
+}
+
 /**
  * Where a bulk delete request is: awaiting confirmation, destroying in the
  * background, or showing what could not be deleted.
@@ -30,9 +36,13 @@ export type BulkDeleteWorkspacesPhase = "confirm" | "running" | "failed";
 interface BulkDeleteWorkspacesIntentState {
 	requestId: number;
 	targets: DashboardSidebarWorkspace[];
+	effort: BulkDeleteEffort | null;
 	phase: BulkDeleteWorkspacesPhase;
 	failures: BulkWorkspaceDeleteFailure[];
-	request: (targets: DashboardSidebarWorkspace[]) => void;
+	request: (
+		targets: DashboardSidebarWorkspace[],
+		effort?: BulkDeleteEffort,
+	) => void;
 	markRunning: (requestId: number) => void;
 	markFailed: (
 		requestId: number,
@@ -45,15 +55,17 @@ export const useBulkDeleteWorkspacesIntent =
 	create<BulkDeleteWorkspacesIntentState>((set) => ({
 		requestId: 0,
 		targets: [],
+		effort: null,
 		phase: "confirm",
 		failures: [],
-		request: (targets) =>
+		request: (targets, effort) =>
 			set((state) =>
 				targets.length === 0
 					? state
 					: {
 							requestId: state.requestId + 1,
 							targets,
+							effort: effort ?? null,
 							phase: "confirm",
 							failures: [],
 						},
@@ -71,7 +83,7 @@ export const useBulkDeleteWorkspacesIntent =
 		close: (requestId) =>
 			set((state) =>
 				state.requestId === requestId
-					? { targets: [], phase: "confirm", failures: [] }
+					? { targets: [], effort: null, phase: "confirm", failures: [] }
 					: state,
 			),
 	}));

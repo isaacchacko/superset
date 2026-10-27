@@ -19,16 +19,23 @@ export interface DeleteWorkspaceTarget {
 interface DeleteWorkspaceIntentState {
 	target: DeleteWorkspaceTarget | null;
 	open: boolean;
+	/** Claims a request before its dialog opens: the sidebar turns deleting an
+	 * effort's sentinel into deleting the whole effort. */
+	divert: ((target: DeleteWorkspaceTarget) => boolean) | null;
 	request: (target: DeleteWorkspaceTarget) => void;
 	setOpen: (workspaceId: string, open: boolean) => void;
 	close: (workspaceId: string) => void;
 }
 
 export const useDeleteWorkspaceIntent = create<DeleteWorkspaceIntentState>(
-	(set) => ({
+	(set, get) => ({
 		target: null,
 		open: false,
-		request: (target) => set({ target, open: true }),
+		divert: null,
+		request: (target) => {
+			if (get().divert?.(target)) return;
+			set({ target, open: true });
+		},
 		setOpen: (workspaceId, open) =>
 			set((state) =>
 				state.target?.workspaceId === workspaceId ? { open } : state,

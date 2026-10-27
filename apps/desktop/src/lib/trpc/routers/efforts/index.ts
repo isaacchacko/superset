@@ -8,6 +8,7 @@ import {
 } from "shared/efforts";
 import { z } from "zod";
 import { publicProcedure, router } from "../..";
+import { EFFORT_BIN, runTool } from "../vector/run-tool";
 
 /** Same override the `effort` CLI honours, so both read one home. */
 export function getEffortsHome(env: NodeJS.ProcessEnv = process.env): string {
@@ -39,5 +40,11 @@ export const createEffortsRouter = () => {
 		get: publicProcedure
 			.input(z.object({ slug: z.string().refine(isEffortSlug) }))
 			.query(({ input }) => readEffortDetails(input.slug)),
+		/** Marks the effort closed, which stops its sentinel's `effort watch`. */
+		close: publicProcedure
+			.input(z.object({ slug: z.string().refine(isEffortSlug) }))
+			.mutation(async ({ input }) => {
+				await runTool(EFFORT_BIN, ["--effort", input.slug, "close"]);
+			}),
 	});
 };

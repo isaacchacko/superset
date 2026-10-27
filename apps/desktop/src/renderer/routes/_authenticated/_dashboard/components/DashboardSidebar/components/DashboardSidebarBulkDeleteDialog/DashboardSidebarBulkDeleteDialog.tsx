@@ -10,7 +10,8 @@ import {
 import { Button } from "@superset/ui/button";
 import { Checkbox } from "@superset/ui/checkbox";
 import { Label } from "@superset/ui/label";
-import { useId } from "react";
+import { useId, useRef } from "react";
+import type { BulkDeleteEffort } from "../../stores/bulkDeleteWorkspacesIntent";
 import type { DashboardSidebarWorkspace } from "../../types";
 import { DashboardSidebarBulkDeleteFailures } from "./components/DashboardSidebarBulkDeleteFailures";
 import { useBulkWorkspaceDelete } from "./hooks/useBulkWorkspaceDelete";
@@ -18,6 +19,7 @@ import { useBulkWorkspaceDelete } from "./hooks/useBulkWorkspaceDelete";
 interface DashboardSidebarBulkDeleteDialogProps {
 	requestId: number;
 	workspaces: DashboardSidebarWorkspace[];
+	effort: BulkDeleteEffort | null;
 	onDeleted: (workspaceIds: string[]) => void;
 }
 
@@ -29,9 +31,11 @@ interface DashboardSidebarBulkDeleteDialogProps {
 export function DashboardSidebarBulkDeleteDialog({
 	requestId,
 	workspaces,
+	effort,
 	onDeleted,
 }: DashboardSidebarBulkDeleteDialogProps) {
 	const checkboxId = useId();
+	const deleteButton = useRef<HTMLButtonElement>(null);
 	const {
 		phase,
 		close,
@@ -42,7 +46,7 @@ export function DashboardSidebarBulkDeleteDialog({
 		inspectionSummary,
 		run,
 		setDeleteBranch,
-	} = useBulkWorkspaceDelete({ requestId, workspaces, onDeleted });
+	} = useBulkWorkspaceDelete({ requestId, workspaces, effort, onDeleted });
 	const {
 		canConfirm,
 		changedCount,
@@ -66,17 +70,35 @@ export function DashboardSidebarBulkDeleteDialog({
 
 	return (
 		<AlertDialog open={phase === "confirm"} onOpenChange={handleOpenChange}>
-			<AlertDialogContent className="max-w-[440px] gap-0 p-0">
+			<AlertDialogContent
+				className="max-w-[440px] gap-0 p-0"
+				// An effort comes from ⌘⇧⌫ on its sentinel: Enter confirms, as it
+				// does for a single workspace.
+				onOpenAutoFocus={(event) => {
+					if (!effort || !deleteButton.current) return;
+					event.preventDefault();
+					deleteButton.current.focus();
+				}}
+			>
 				<AlertDialogHeader className="px-4 pt-4 pb-2">
 					<AlertDialogTitle className="font-medium">
-						<Plural
-							value={workspaces.length}
-							one="Delete # workspace?"
-							other="Delete # workspaces?"
-						/>
+						{effort ? (
+							<Trans>Delete effort "{effort.name}"?</Trans>
+						) : (
+							<Plural
+								value={workspaces.length}
+								one="Delete # workspace?"
+								other="Delete # workspaces?"
+							/>
+						)}
 					</AlertDialogTitle>
 					<AlertDialogDescription>
-						{onlySharedCheckout ? (
+						{effort ? (
+							<Trans>
+								This deletes the sentinel and every child workspace, removes
+								their worktrees from disk, and closes the effort.
+							</Trans>
+						) : onlySharedCheckout ? (
 							<Trans>
 								This closes the selected workspaces and their terminals. The
 								project's files and branches stay as they are.
@@ -163,6 +185,7 @@ export function DashboardSidebarBulkDeleteDialog({
 						<Trans>Cancel</Trans>
 					</Button>
 					<Button
+						ref={deleteButton}
 						variant="destructive"
 						size="sm"
 						className="h-7 px-3 text-xs"

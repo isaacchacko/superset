@@ -10,8 +10,10 @@ import {
 	inspectWorkspaceAtHost,
 } from "renderer/hooks/host-service/useDestroyWorkspace";
 import { useV2UserPreferences } from "renderer/hooks/useV2UserPreferences/useV2UserPreferences";
+import { electronTrpc } from "renderer/lib/electron-trpc";
 import { useNavigateAwayFromWorkspace } from "renderer/routes/_authenticated/_dashboard/components/DashboardSidebar/hooks/useNavigateAwayFromWorkspace";
 import {
+	type BulkDeleteEffort,
 	type BulkWorkspaceDeleteFailure,
 	useBulkDeleteWorkspacesIntent,
 } from "renderer/routes/_authenticated/_dashboard/components/DashboardSidebar/stores/bulkDeleteWorkspacesIntent";
@@ -28,6 +30,7 @@ import {
 interface UseBulkWorkspaceDeleteOptions {
 	requestId: number;
 	workspaces: DashboardSidebarWorkspace[];
+	effort: BulkDeleteEffort | null;
 	onDeleted: (workspaceIds: string[]) => void;
 }
 
@@ -71,9 +74,11 @@ export function bulkWorkspaceDestroyErrorMessage(
 export function useBulkWorkspaceDelete({
 	requestId,
 	workspaces,
+	effort,
 	onDeleted,
 }: UseBulkWorkspaceDeleteOptions) {
 	const { t } = useLingui();
+	const closeEffort = electronTrpc.efforts.close.useMutation();
 	const { cache: hostWorkspacesCache } = useHostWorkspaces();
 	const { navigateAwayFromWorkspace } = useNavigateAwayFromWorkspace();
 	const { removeWorkspaceFromSidebar } = useDashboardSidebarState();
@@ -337,13 +342,28 @@ export function useBulkWorkspaceDelete({
 
 	const run = useCallback(async () => {
 		if (!inspectionSummary.canConfirm) return;
+		if (effort) {
+			// Workspaces go regardless: an effort left open only keeps its record.
+			await closeEffort.mutateAsync({ slug: effort.slug }).catch((error) =>
+				toast.warning(t({ message: `Couldn’t close effort ${effort.slug}` }), {
+					description: (error as Error).message,
+				}),
+			);
+		}
 		await execute({
 			targets: workspaces,
 			forceAll: false,
 			skipTeardown: false,
 			retainedFailures: [],
 		});
-	}, [execute, inspectionSummary.canConfirm, workspaces]);
+	}, [
+		closeEffort,
+		effort,
+		execute,
+		inspectionSummary.canConfirm,
+		t,
+		workspaces,
+	]);
 
 	const forceTeardownFailures = useCallback(async () => {
 		const teardownFailures = failures.filter(
